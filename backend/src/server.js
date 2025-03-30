@@ -1,18 +1,17 @@
 const express = require("express");
 const dotenv = require("dotenv");
-const connectDB = require("./config/db"); // Import database connection function
+const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
-const redis = require("./config/redis"); // Import Redis connection
+const proposalRoutes = require("./routes/proposalRoutes");
 
 dotenv.config();
+connectDB();
 
 const app = express();
 app.use(express.json());
 
-// ✅ Call the database connection function
-connectDB(); // This ensures MongoDB connects when the server starts
-
 app.use("/api/auth", authRoutes);
+app.use("/api/proposals", proposalRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
