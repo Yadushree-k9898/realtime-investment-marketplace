@@ -1,6 +1,6 @@
 const Proposal = require("../models/Proposal");
 const User = require("../models/User");
-
+const mongoose = require('mongoose')
 
 // Create Proposal (Only for Founders)
 exports.createProposal = async (req, res) => {
@@ -24,45 +24,99 @@ exports.createProposal = async (req, res) => {
   }
 };
 
-// Get All Proposals
+// Get All Proposals (With Optional Status Filter)
 exports.getProposals = async (req, res) => {
   try {
-    const proposals = await Proposal.find().populate("founder", "name email");
+    const { status } = req.query; // Get status from query params
+    const filter = {};
+
+    if (status) {
+      if (!["Under Review", "Negotiating", "Funded"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      filter.status = status;
+    }
+
+    const proposals = await Proposal.find(filter)
+      .populate("founder", "name email")
+      .populate("investors.investor", "name email")
+      .populate("comments.user", "name email");
+
     res.json(proposals);
   } catch (error) {
+    console.error("Error fetching proposals:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Get Single Proposal
+
+// Get Specific Proposal (Optional: Ensure Status)
 exports.getProposal = async (req, res) => {
   try {
-    const proposal = await Proposal.findById(req.params.id).populate("founder", "name email");
+    const { id } = req.params;
+    const { status } = req.query; // Optional status filter
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid proposal ID" });
+    }
+
+    const filter = { _id: id };
+    if (status) {
+      if (!["Under Review", "Negotiating", "Funded"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      filter.status = status;
+    }
+
+    const proposal = await Proposal.findOne(filter)
+      .populate("founder", "name email")
+      .populate("investors.investor", "name email")
+      .populate("comments.user", "name email")
+      .lean();
+
     if (!proposal) {
       return res.status(404).json({ message: "Proposal not found" });
     }
-    res.json(proposal);
+
+    res.status(200).json(proposal);
   } catch (error) {
+    console.error("Error fetching proposal:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 
 
+// exports.getProposal = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const proposal = await Proposal.findById(id)
+//       .populate("founder", "name email")
+//       .populate("investors.investor", "name email")
+//       .populate("comments.user", "name email");
+
+//     if (!proposal) {
+//       return res.status(404).json({ message: "Proposal not found" });
+//     }
+
+//     res.status(200).json(proposal);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+// Update Proposal (Only for Founder or Admin)
 exports.updateProposal = async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id);
-
     if (!proposal) {
       return res.status(404).json({ message: "Proposal not found" });
     }
 
-    // Allow founders & admins to update the proposal
     if (proposal.founder.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to update this proposal" });
     }
 
-    // Whitelist fields to prevent overwriting sensitive data
     const allowedUpdates = ["title", "description", "fundingGoal", "status"];
     Object.keys(req.body).forEach((key) => {
       if (allowedUpdates.includes(key)) {
@@ -72,7 +126,6 @@ exports.updateProposal = async (req, res) => {
 
     await proposal.save();
 
-    // Emit real-time update using Socket.io (if integrated)
     if (req.io) {
       req.io.emit("proposalUpdated", {
         proposalId: proposal._id,
@@ -88,76 +141,81 @@ exports.updateProposal = async (req, res) => {
 
 // Delete Proposal (Only Founder)
 exports.deleteProposal = async (req, res) => {
-    try {
-      const proposal = await Proposal.findById(req.params.id);
-      if (!proposal) {
-        return res.status(404).json({ message: "Proposal not found" });
-      }
-  
-      if (proposal.founder.toString() !== req.user.id) {
-        return res.status(403).json({ message: "Not authorized to delete this proposal" });
-      }
-  
-      await Proposal.findByIdAndDelete(req.params.id); // ✅ Corrected deletion method
-      res.json({ message: "Proposal deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+  try {
+    const proposal = await Proposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: "Proposal not found" });
     }
-  };
-  
 
-  exports.investInProposal = async (req, res) => {
-    try {
-      if (req.user.role !== "investor") {
-        return res.status(403).json({ message: "Only investors can invest" });
-      }
-  
-      const { amount } = req.body;
-      const proposal = await Proposal.findById(req.params.id);
-  
-      if (!proposal) {
-        return res.status(404).json({ message: "Proposal not found" });
-      }
-  
-      // ✅ Ensure investors array is initialized
-      if (!proposal.investors) {
-        proposal.investors = [];
-      }
-  
-      proposal.investors.push({ investor: req.user.id, amount });
-      proposal.currentFunding += amount;
-  
-      if (proposal.currentFunding >= proposal.fundingGoal) {
-        proposal.status = "Funded";
-      }
-  
-      await proposal.save();
-      res.json({ message: "Investment successful", proposal });
-    } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+    if (proposal.founder.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized to delete this proposal" });
     }
-  };
-  
+
+    await Proposal.findByIdAndDelete(req.params.id);
+    res.json({ message: "Proposal deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Invest in Proposal (Only for Investors)
+exports.investInProposal = async (req, res) => {
+  try {
+    if (req.user.role !== "investor") {
+      return res.status(403).json({ message: "Only investors can invest" });
+    }
+
+    const { amount } = req.body;
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ message: "Invalid investment amount" });
+    }
+
+    const proposal = await Proposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: "Proposal not found" });
+    }
+
+    const investorIndex = proposal.investors.findIndex(
+      (inv) => inv.investor.toString() === req.user.id.toString()
+    );
+
+    if (investorIndex !== -1) {
+      proposal.investors[investorIndex].amount += amount;
+    } else {
+      proposal.investors.push({ investor: req.user.id, amount });
+    }
+
+    proposal.currentFunding += amount;
+    if (proposal.currentFunding >= proposal.fundingGoal) {
+      proposal.status = "Funded";
+    }
+
+    await proposal.save();
+    res.json({ message: "Investment successful", proposal });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 // Add Comment to a Proposal
 exports.addCommentToProposal = async (req, res) => {
-    try {
-      const proposal = await Proposal.findById(req.params.id);
-      if (!proposal) {
-        return res.status(404).json({ message: "Proposal not found" });
-      }
-  
-      const comment = {
-        user: req.user.id,
-        text: req.body.comment,
-        createdAt: new Date(),
-      };
-  
-      proposal.comments.push(comment);
-      await proposal.save();
-  
-      res.status(201).json({ message: "Comment added successfully", proposal });
-    } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+  try {
+    const proposal = await Proposal.findById(req.params.id);
+    if (!proposal) {
+      return res.status(404).json({ message: "Proposal not found" });
     }
-  };
-  
+
+    const comment = {
+      user: req.user.id,
+      text: req.body.comment,
+      createdAt: new Date(),
+    };
+
+    proposal.comments.push(comment);
+    await proposal.save();
+
+    res.status(201).json({ message: "Comment added successfully", proposal });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
