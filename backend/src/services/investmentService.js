@@ -5,6 +5,65 @@ const mongoose = require("mongoose");
 
 
 // Invest in a Proposal
+// const investInProposal = async (investorId, proposalId, amount, industry) => {
+//     try {
+//         if (!industry) {
+//             throw new Error("Industry is required");
+//         }
+//         if (isNaN(amount) || amount <= 0) {
+//             throw new Error("Invalid investment amount");
+//         }
+
+//         const proposal = await Proposal.findById(proposalId);
+//         if (!proposal) {
+//             throw new Error("Proposal not found");
+//         }
+
+//         const investment = new Investment({
+//             investor: investorId,
+//             proposal: proposalId,
+//             amount,
+//             industry,
+//             date: new Date(),
+//         });
+
+//         await investment.save();
+
+//         // Update proposal investors list
+//         const investorIndex = proposal.investors.findIndex(
+//             (inv) => inv.investor.toString() === investorId.toString()
+//         );
+
+//         if (investorIndex !== -1) {
+//             proposal.investors[investorIndex].amount += amount;
+//         } else {
+//             proposal.investors.push({ investor: investorId, amount });
+//         }
+
+//         proposal.currentFunding += amount;
+//         if (proposal.currentFunding >= proposal.fundingGoal) {
+//             proposal.status = "Funded";
+//         }
+
+//         await proposal.save();
+
+//         // Update Redis cache
+//         const cacheKey = `investorStats:${investorId}`;
+//         const updatedStats = await getInvestorStats(investorId);
+//         await redisClient.set(cacheKey, JSON.stringify(updatedStats), "EX", 600);
+
+//         return { investment, proposal };
+//     } catch (error) {
+//         console.error("❌ Error investing in proposal:", error);
+//         throw error;
+//     }
+// };
+
+// Check if proposalId is valid ObjectId
+const isValidProposalId = (proposalId) => {
+    return mongoose.Types.ObjectId.isValid(proposalId) && proposalId.length === 24;
+  };
+  
 const investInProposal = async (investorId, proposalId, amount, industry) => {
     try {
         if (!industry) {
@@ -14,6 +73,12 @@ const investInProposal = async (investorId, proposalId, amount, industry) => {
             throw new Error("Invalid investment amount");
         }
 
+        // Validate proposalId format
+        if (!isValidProposalId(proposalId)) {
+            throw new Error("Invalid proposal ID format");
+        }
+
+        // Fetch the proposal
         const proposal = await Proposal.findById(proposalId);
         if (!proposal) {
             throw new Error("Proposal not found");
@@ -47,14 +112,11 @@ const investInProposal = async (investorId, proposalId, amount, industry) => {
 
         await proposal.save();
 
-        // Update Redis cache
-        const cacheKey = `investorStats:${investorId}`;
-        const updatedStats = await getInvestorStats(investorId);
-        await redisClient.set(cacheKey, JSON.stringify(updatedStats), "EX", 600);
-
         return { investment, proposal };
+        console.log("Received proposalId:", proposalId); 
+
     } catch (error) {
-        console.error("❌ Error investing in proposal:", error);
+        console.error("❌ Error investing in proposal:", error.message); // Log the error message
         throw error;
     }
 };

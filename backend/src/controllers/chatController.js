@@ -1,4 +1,5 @@
 const Message = require("../models/Message");
+const redis = require("../config/redis");
 
 exports.getMessages = async (req, res) => {
   try {
@@ -8,6 +9,15 @@ exports.getMessages = async (req, res) => {
       return res.status(400).json({ error: "Proposal ID is required" });
     }
 
+    const cacheKey = `messages:${proposalId}`;
+    const cachedMessages = await redis.get(cacheKey);
+
+    if (cachedMessages) {
+      console.log("📌 Serving cached messages...");
+      return res.status(200).json(JSON.parse(cachedMessages));
+    }
+
+    console.log("🔍 Fetching fresh messages...");
     const messages = await Message.find({ proposal: proposalId })
       .populate("sender", "name email")
       .populate("receiver", "name email")
@@ -17,6 +27,7 @@ exports.getMessages = async (req, res) => {
       return res.status(404).json({ message: "No messages found for this proposal" });
     }
 
+    await redis.set(cacheKey, JSON.stringify(messages), "EX", 600); // Cache for 10 minutes
     res.status(200).json(messages);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch messages", details: error.message });
@@ -40,6 +51,10 @@ exports.sendMessage = async (req, res) => {
 
     await message.save();
 
+    // Invalidate the cache for the proposal's messages
+    const cacheKey = `messages:${proposalId}`;
+    await redis.del(cacheKey);
+
     res.status(201).json({ message: "Message sent successfully", data: message });
   } catch (error) {
     res.status(500).json({ error: "Failed to send message", details: error.message });
@@ -61,6 +76,10 @@ exports.markAsRead = async (req, res) => {
 
     message.isRead = true;
     await message.save();
+
+    // Invalidate the cache for the proposal's messages
+    const cacheKey = `messages:${message.proposal}`;
+    await redis.del(cacheKey);
 
     res.status(200).json({ message: "Message marked as read successfully" });
   } catch (error) {

@@ -4,8 +4,6 @@ const bcrypt = require('bcryptjs');
 const redisClient = require('../config/redis'); // Redis connection
 const generateToken = require("../utils/generateToken");
 
-
-
 // Register User
 exports.register = async (req, res) => {
     try {
@@ -61,8 +59,6 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
-
-
 
 // Logout User (Blacklist Token)
 exports.logout = async (req, res) => {
