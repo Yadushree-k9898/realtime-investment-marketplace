@@ -1,6 +1,7 @@
 const Proposal = require("../models/Proposal");
 const User = require("../models/User");
 
+
 // Create Proposal (Only for Founders)
 exports.createProposal = async (req, res) => {
   try {
@@ -46,26 +47,45 @@ exports.getProposal = async (req, res) => {
   }
 };
 
-// Update Proposal (Only Founder)
+
+
 exports.updateProposal = async (req, res) => {
   try {
     const proposal = await Proposal.findById(req.params.id);
+
     if (!proposal) {
       return res.status(404).json({ message: "Proposal not found" });
     }
 
-    if (proposal.founder.toString() !== req.user.id) {
+    // Allow founders & admins to update the proposal
+    if (proposal.founder.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to update this proposal" });
     }
 
-    Object.assign(proposal, req.body);
+    // Whitelist fields to prevent overwriting sensitive data
+    const allowedUpdates = ["title", "description", "fundingGoal", "status"];
+    Object.keys(req.body).forEach((key) => {
+      if (allowedUpdates.includes(key)) {
+        proposal[key] = req.body[key];
+      }
+    });
+
     await proposal.save();
+
+    // Emit real-time update using Socket.io (if integrated)
+    if (req.io) {
+      req.io.emit("proposalUpdated", {
+        proposalId: proposal._id,
+        updatedFields: req.body,
+      });
+    }
 
     res.json({ message: "Proposal updated successfully", proposal });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 // Delete Proposal (Only Founder)
 exports.deleteProposal = async (req, res) => {
     try {

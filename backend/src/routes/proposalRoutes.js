@@ -10,6 +10,7 @@ const {
   investInProposal,
   addCommentToProposal, // ✅ Add this
 } = require("../controllers/proposalController");
+// const { authorizeRole } = require("../middlewares/roleMiddleware"); 
 
 const router = express.Router();
 
