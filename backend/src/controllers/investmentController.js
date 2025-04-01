@@ -91,7 +91,6 @@ exports.fundingTrends = async (req, res) => {
         res.status(500).json({ message: "Error fetching funding trends", error: error.message });
     }
 };
-
 exports.getInvestmentROI = async (req, res) => {
     try {
         const investorId = req.user.id;
@@ -111,17 +110,24 @@ exports.getInvestmentROI = async (req, res) => {
 
         investments.forEach((investment) => {
             const proposal = investment.proposal;
+
+            // Ensure proposal exists before trying to access its properties
+            if (!proposal) {
+                console.error("Proposal not found for investment", investment._id);
+                return; // Skip this investment if no proposal is found
+            }
+
             const investedAmount = investment.amount;
 
             // Sum total investments
             totalInvested += investedAmount;
 
-            // Calculate ROI for each proposal
+            // Ensure totalReturns is defined
             const returns = proposal.totalReturns !== undefined ? proposal.totalReturns : 0; // Default to 0 if totalReturns is undefined
             totalReturns += returns;
 
             // Calculate ROI for this proposal
-            const roi = (returns - investedAmount) / investedAmount * 100;
+            const roi = investedAmount > 0 ? ((returns - investedAmount) / investedAmount) * 100 : 0; // Avoid division by zero
             roiData.push({
                 proposal: proposal._id,
                 roi: roi.toFixed(2), // ROI in percentage
@@ -131,7 +137,7 @@ exports.getInvestmentROI = async (req, res) => {
         });
 
         // Calculate total ROI for the investor across all investments
-        const totalRoi = ((totalReturns - totalInvested) / totalInvested) * 100;
+        const totalRoi = totalInvested > 0 ? ((totalReturns - totalInvested) / totalInvested) * 100 : 0;
 
         res.status(200).json({
             totalInvested,
@@ -144,6 +150,60 @@ exports.getInvestmentROI = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
     }
 };
+
+
+// exports.getInvestmentROI = async (req, res) => {
+//     try {
+//         const investorId = req.user.id;
+
+//         // Fetch all investments made by the investor
+//         const investments = await Investment.find({ investor: investorId })
+//             .populate("proposal", "fundingGoal totalReturns"); // Populate proposals
+
+//         if (!investments.length) {
+//             return res.status(404).json({ message: "No investments found for this investor" });
+//         }
+
+//         // Aggregate data for each proposal
+//         let totalInvested = 0;
+//         let totalReturns = 0;
+//         let roiData = [];
+
+//         investments.forEach((investment) => {
+//             const proposal = investment.proposal;
+//             const investedAmount = investment.amount;
+
+//             // Sum total investments
+//             totalInvested += investedAmount;
+
+//             // Calculate ROI for each proposal
+//             const returns = proposal.totalReturns !== undefined ? proposal.totalReturns : 0; // Default to 0 if totalReturns is undefined
+//             totalReturns += returns;
+
+//             // Calculate ROI for this proposal
+//             const roi = (returns - investedAmount) / investedAmount * 100;
+//             roiData.push({
+//                 proposal: proposal._id,
+//                 roi: roi.toFixed(2), // ROI in percentage
+//                 investedAmount: investedAmount,
+//                 returns: returns,
+//             });
+//         });
+
+//         // Calculate total ROI for the investor across all investments
+//         const totalRoi = ((totalReturns - totalInvested) / totalInvested) * 100;
+
+//         res.status(200).json({
+//             totalInvested,
+//             totalReturns,
+//             totalRoi: totalRoi.toFixed(2),
+//             roiByProposal: roiData,
+//         });
+//     } catch (error) {
+//         console.error("❌ Error fetching ROI:", error);
+//         res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
+//     }
+// };
 
 
 // Search Investments

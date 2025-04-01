@@ -50,7 +50,6 @@ const getInvestorStats = async (investorId) => {
     }
 };
 
-// Get investment ROI (separate for each proposal)
 const getInvestmentROI = async (investorId) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(investorId)) {
@@ -67,7 +66,7 @@ const getInvestmentROI = async (investorId) => {
             const proposal = investment.proposal;
             if (!proposal) return; // Skip if no proposal
 
-            const returns = investment.returns || 0; // Ensure returns is defined
+            const returns = proposal.totalReturns || 0; // Ensure totalReturns is defined
             totalInvested += investment.amount;
             totalReturns += returns;
             const proposalTitle = proposal.title;
@@ -90,6 +89,8 @@ const getInvestmentROI = async (investorId) => {
         throw new Error("Error calculating ROI.");
     }
 };
+
+
 
 
 // Invest in proposal
