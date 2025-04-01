@@ -1,224 +1,163 @@
-const Investment = require("../models/Investment");
 const Proposal = require("../models/Proposal");
-const redisClient = require("../config/redis");
+const Investment = require("../models/Investment");
 const mongoose = require("mongoose");
 
 
-// Invest in a Proposal
-// const investInProposal = async (investorId, proposalId, amount, industry) => {
-//     try {
-//         if (!industry) {
-//             throw new Error("Industry is required");
-//         }
-//         if (isNaN(amount) || amount <= 0) {
-//             throw new Error("Invalid investment amount");
-//         }
-
-//         const proposal = await Proposal.findById(proposalId);
-//         if (!proposal) {
-//             throw new Error("Proposal not found");
-//         }
-
-//         const investment = new Investment({
-//             investor: investorId,
-//             proposal: proposalId,
-//             amount,
-//             industry,
-//             date: new Date(),
-//         });
-
-//         await investment.save();
-
-//         // Update proposal investors list
-//         const investorIndex = proposal.investors.findIndex(
-//             (inv) => inv.investor.toString() === investorId.toString()
-//         );
-
-//         if (investorIndex !== -1) {
-//             proposal.investors[investorIndex].amount += amount;
-//         } else {
-//             proposal.investors.push({ investor: investorId, amount });
-//         }
-
-//         proposal.currentFunding += amount;
-//         if (proposal.currentFunding >= proposal.fundingGoal) {
-//             proposal.status = "Funded";
-//         }
-
-//         await proposal.save();
-
-//         // Update Redis cache
-//         const cacheKey = `investorStats:${investorId}`;
-//         const updatedStats = await getInvestorStats(investorId);
-//         await redisClient.set(cacheKey, JSON.stringify(updatedStats), "EX", 600);
-
-//         return { investment, proposal };
-//     } catch (error) {
-//         console.error("❌ Error investing in proposal:", error);
-//         throw error;
-//     }
-// };
-
-// Check if proposalId is valid ObjectId
-const isValidProposalId = (proposalId) => {
-    return mongoose.Types.ObjectId.isValid(proposalId) && proposalId.length === 24;
-  };
-  
-const investInProposal = async (investorId, proposalId, amount, industry) => {
-    try {
-        if (!industry) {
-            throw new Error("Industry is required");
-        }
-        if (isNaN(amount) || amount <= 0) {
-            throw new Error("Invalid investment amount");
-        }
-
-        // Validate proposalId format
-        if (!isValidProposalId(proposalId)) {
-            throw new Error("Invalid proposal ID format");
-        }
-
-        // Fetch the proposal
-        const proposal = await Proposal.findById(proposalId);
-        if (!proposal) {
-            throw new Error("Proposal not found");
-        }
-
-        const investment = new Investment({
-            investor: investorId,
-            proposal: proposalId,
-            amount,
-            industry,
-            date: new Date(),
-        });
-
-        await investment.save();
-
-        // Update proposal investors list
-        const investorIndex = proposal.investors.findIndex(
-            (inv) => inv.investor.toString() === investorId.toString()
-        );
-
-        if (investorIndex !== -1) {
-            proposal.investors[investorIndex].amount += amount;
-        } else {
-            proposal.investors.push({ investor: investorId, amount });
-        }
-
-        proposal.currentFunding += amount;
-        if (proposal.currentFunding >= proposal.fundingGoal) {
-            proposal.status = "Funded";
-        }
-
-        await proposal.save();
-
-        return { investment, proposal };
-        console.log("Received proposalId:", proposalId); 
-
-    } catch (error) {
-        console.error("❌ Error investing in proposal:", error.message); // Log the error message
-        throw error;
-    }
-};
-
-
-
-
-// Get total investments and count for an investor
 const getInvestorStats = async (investorId) => {
     try {
-        const cacheKey = `investorStats:${investorId}`;
-        await redisClient.del(cacheKey); // Ensure no old data is causing conflicts
+        console.log(`Fetching stats for investor ID: ${investorId}`);
+        
+        // Fetch the investments related to the investor
+        const investments = await Investment.find({ investor: investorId });
 
-        // Convert investorId to ObjectId
+        if (!investments || investments.length === 0) {
+            throw new Error("No investments found for this investor.");
+        }
+
+        // Example: Calculate stats (you can modify this logic to match your needs)
+        const totalInvested = investments.reduce((sum, inv) => sum + inv.amount, 0);
+        const totalReturns = investments.reduce((sum, inv) => sum + (inv.returns || 0), 0);
+
+        // Handle the case where returns are 0 (for ROI calculation)
+        let roi = 0;
+        if (totalInvested > 0) {
+            roi = totalReturns > 0 ? ((totalReturns - totalInvested) / totalInvested) : 0;
+        }
+
+        console.log(`Total Invested: ${totalInvested}, Total Returns: ${totalReturns}, ROI: ${roi}`);
+
+        return { totalInvested, totalReturns, roi };
+    } catch (error) {
+        console.error("❌ Error in getInvestorStats:", error);
+        throw new Error("Error calculating investor stats.");
+    }
+};
+
+const getInvestmentROI = async (investorId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(investorId)) {
+            throw new Error("Invalid investor ID.");
+        }
         const investorObjectId = new mongoose.Types.ObjectId(investorId);
+        
+        console.log(`Calculating ROI for investor ID: ${investorId}`);
 
-        // Log the investorId to verify
-        console.log("Investor ID:", investorObjectId);
+        const investments = await Investment.find({ investor: investorObjectId });
+        if (investments.length === 0) {
+            console.warn(`No investments found for investor ${investorId}`);
+            return { totalInvested: 0, totalReturns: 0, roi: 0 };
+        }
 
-        // Fetch investments and aggregate
-        const totalInvestments = await Investment.aggregate([
+        const totalInvested = await Investment.aggregate([
             { $match: { investor: investorObjectId } },
-            { $group: { _id: "$investor", totalAmount: { $sum: "$amount" }, count: { $sum: 1 } } }
+            { $group: { _id: null, totalInvested: { $sum: "$amount" } } }
         ]);
 
-        console.log("Aggregated Investment Stats:", totalInvestments);
+        const totalReturns = await Investment.aggregate([
+            { $match: { investor: investorObjectId } },
+            { $group: { _id: null, totalReturns: { $sum: { $ifNull: ["$returns", 0] } } } }
+        ]);
 
-        // Default stats if no investments are found
-        const stats = totalInvestments[0] || { totalAmount: 0, count: 0 };
+        const totalInvestedAmount = totalInvested.length > 0 ? totalInvested[0].totalInvested : 0;
+        const totalReturnsAmount = totalReturns.length > 0 ? totalReturns[0].totalReturns : 0;
 
-        // Store in Redis
-        await redisClient.set(cacheKey, JSON.stringify(stats), "EX", 300);
+        let roi = 0;
+        if (totalInvestedAmount > 0) {
+            roi = ((totalReturnsAmount - totalInvestedAmount) / totalInvestedAmount) * 100;
+        }
 
-        return stats;
+        console.log(`✅ ROI Calculated: Invested: ${totalInvestedAmount}, Returns: ${totalReturnsAmount}, ROI: ${roi}%`);
+
+        return {
+            totalInvested: totalInvestedAmount,
+            totalReturns: totalReturnsAmount,
+            roi: roi.toFixed(2),
+        };
     } catch (error) {
-        console.error("Error fetching investor stats:", error);
-        return { error: "Failed to fetch investor stats" };
+        console.error("❌ Error calculating ROI:", error);
+        throw new Error("Error calculating ROI.");
     }
 };
 
 
-// Get funding trends (daily, weekly, monthly)
+
+
+
+
 const getFundingTrends = async (interval = "monthly") => {
     try {
-        const timeFormat = {
-            daily: { format: "%Y-%m-%d" },
-            weekly: { format: "%Y-%U" },
-            monthly: { format: "%Y-%m" },
-        };
-
-        const cacheKey = `fundingTrends:${interval}`;
-        const cachedData = await redisClient.get(cacheKey);
-
-        if (cachedData) {
-            return JSON.parse(cachedData);
-        }
+        const matchStage = {
+            "monthly": { $dateToString: { format: "%Y-%m", date: "$date" } },
+            "yearly": { $dateToString: { format: "%Y", date: "$date" } },
+            "weekly": { $isoWeek: "$date" },
+        }[interval] || { $dateToString: { format: "%Y-%m", date: "$date" } };
 
         const trends = await Investment.aggregate([
-            {
-                $group: {
-                    _id: { $dateToString: { format: timeFormat[interval].format, date: "$createdAt" } },
-                    totalFunding: { $sum: "$amount" },
-                    count: { $sum: 1 },
-                },
-            },
+            { $group: { _id: matchStage, totalInvested: { $sum: "$amount" } } },
             { $sort: { _id: 1 } }
         ]);
 
-        // Store trends in Redis cache
-        await redisClient.set(cacheKey, JSON.stringify(trends), "EX", 600);
-
         return trends;
     } catch (error) {
-        console.error("❌ Error in getFundingTrends:", error);
-        return { error: "Failed to fetch funding trends" };
+        console.error("❌ Error getting funding trends:", error);
+        throw new Error("Error fetching funding trends.");
     }
 };
 
-// Calculate ROI (Return on Investment)
-const getInvestmentROI = async (investorId) => {
+
+const updateInvestmentReturns = async (investmentId, proposalId) => {
     try {
-        const investorObjectId = new mongoose.Types.ObjectId(investorId);
+        if (!mongoose.Types.ObjectId.isValid(investmentId) || !mongoose.Types.ObjectId.isValid(proposalId)) {
+            throw new Error("Invalid investment or proposal ID.");
+        }
 
-        const investments = await Investment.find({ investor: investorObjectId }).populate("proposal", "returns");
+        const investment = await Investment.findById(investmentId);
+        if (!investment) {
+            throw new Error(`Investment with ID ${investmentId} not found.`);
+        }
 
-        let totalInvested = 0;
-        let totalReturns = 0;
+        const proposal = await Proposal.findById(proposalId);
+        if (!proposal) {
+            throw new Error(`Proposal with ID ${proposalId} not found.`);
+        }
 
-        investments.forEach((inv) => {
-            totalInvested += inv.amount;
-            if (inv.proposal && inv.proposal.returns) { // ✅ Check if proposal exists
-                totalReturns += inv.proposal.returns;
-            }
-        });
+        // Calculate returns based on proposal status
+        let returns = 0;
+        if (proposal.status === "Funded") {
+            const roiPercentage = 0.1; // Example: 10% return
+            returns = investment.amount * roiPercentage;
+        }
 
-        const roi = totalInvested > 0 ? ((totalReturns - totalInvested) / totalInvested) * 100 : 0;
+        investment.returns = returns;
+        investment.roi = (returns / investment.amount) * 100;
+        await investment.save();
 
-        return { totalInvested, totalReturns, roi: roi.toFixed(2) };
+        return { investment, returns };
     } catch (error) {
-        console.error("❌ Error in getInvestmentROI:", error);
-        return { error: "Failed to calculate ROI" };
+        console.error("❌ Error updating investment returns:", error);
+        throw new Error("Error updating investment returns.");
     }
 };
 
-module.exports = { getInvestorStats, getFundingTrends, getInvestmentROI, investInProposal };
+const setDefaultReturns = async () => {
+    try {
+        const result = await Investment.updateMany(
+            { returns: { $exists: false } },
+            { $set: { returns: 0 } }
+        );
+        return result;
+    } catch (error) {
+        console.error("❌ Error updating default returns:", error);
+        throw new Error("Error setting default returns.");
+    }
+};
+
+module.exports = {
+    getInvestorStats,
+    getFundingTrends,
+    getInvestmentROI,
+    updateInvestmentReturns,
+    setDefaultReturns,
+};
+
+

@@ -1,103 +1,56 @@
-const { getInvestorStats, getFundingTrends, getInvestmentROI, investInProposal } = require("../services/investmentService");
-const redis = require("../config/redis");
+const { getInvestorStats, getFundingTrends, getInvestmentROI, investInProposal, updateInvestmentReturns } = require("../services/investmentService");
 const Proposal = require("../models/Proposal");
 const Investment = require("../models/Investment");
 const mongoose = require("mongoose");
 
-// Invest in a Proposal (Only for Investors)
-exports.investInProposal = async (req, res) => {
-    try {
-        // Validate proposal ID
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-            return res.status(400).json({ message: "Invalid proposal ID" });
-        }
-
-        if (req.user.role !== "investor") {
-            return res.status(403).json({ message: "Only investors can invest" });
-        }
-
-        const { amount, industry } = req.body;
-        if (!industry) {
-            return res.status(400).json({ message: "Industry is required" });
-        }
-        if (isNaN(amount) || amount <= 0) {
-            return res.status(400).json({ message: "Invalid investment amount" });
-        }
-
-        // Check Redis cache for proposal
-        const proposalCacheKey = `proposal:${req.params.id}`;
-        const cachedProposal = await redis.get(proposalCacheKey);
-
-        let proposal;
-        if (cachedProposal) {
-            console.log('📌 Serving cached proposal...');
-            proposal = JSON.parse(cachedProposal);
-        } else {
-            console.log('🔍 Fetching fresh proposal...');
-            proposal = await Proposal.findById(req.params.id);
-            if (!proposal) {
-                return res.status(404).json({ message: "Proposal not found" });
-            }
-            // Cache proposal for 1 hour
-            await redis.set(proposalCacheKey, JSON.stringify(proposal), 'EX', 3600);
-        }
-
-        // Create a new investment
-        const investment = new Investment({
-            investor: req.user.id,
-            proposal: req.params.id,
-            amount,
-            industry,
-            date: new Date(),
-        });
-
-        await investment.save();
-
-        // Update the proposal's investors list and funding
-        const investorIndex = proposal.investors.findIndex(
-            (inv) => inv.investor.toString() === req.user.id.toString()
-        );
-
-        if (investorIndex !== -1) {
-            proposal.investors[investorIndex].amount += amount;
-        } else {
-            proposal.investors.push({ investor: req.user.id, amount });
-        }
-
-        proposal.currentFunding += amount;
-        if (proposal.currentFunding >= proposal.fundingGoal) {
-            proposal.status = "Funded";
-        }
-
-        await proposal.save();
-
-        // Clear the cached proposal as it has been updated
-        await redis.del(proposalCacheKey);
-
-        res.json({ message: "Investment successful", investment, proposal });
-    } catch (error) {
-        console.error("❌ Error in investment:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
+// Check if proposalId is valid ObjectId
+const isValidProposalId = (proposalId) => {
+    return mongoose.Types.ObjectId.isValid(proposalId) && proposalId.length === 24;
 };
 
-// Get investor stats (total investments & count)
+exports.investInProposal = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { amount, industry, investmentType, investmentStage } = req.body;
+
+    // Validate the proposal ID
+    if (!isValidProposalId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid proposal ID" });
+    }
+
+    const proposal = await Proposal.findById(req.params.id).session(session);
+    if (!proposal) return res.status(404).json({ message: "Proposal not found" });
+
+    // Validate investment details
+    if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: "Invalid investment amount" });
+    if (!industry) return res.status(400).json({ message: "Industry is required" });
+    if (!["equity", "debt", "convertible"].includes(investmentType)) return res.status(400).json({ message: "Invalid investment type" });
+    if (!["seed", "seriesA", "seriesB", "IPO"].includes(investmentStage)) return res.status(400).json({ message: "Invalid investment stage" });
+
+    // Update the proposal with the investor's contribution
+    await proposal.updateInvestor(req.user.id, amount);
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ message: "Investment successful", updatedProposal: proposal });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("❌ Error in investment:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get investor stats (including ROI)
 exports.investorStats = async (req, res) => {
     try {
         const investorId = req.user.id;
-        const cacheKey = `investorStats:${investorId}`;
-        const cachedData = await redis.get(cacheKey);
 
-        if (cachedData) {
-            console.log("📌 Serving cached investor stats...");
-            return res.status(200).json(JSON.parse(cachedData));
-        }
-
-        console.log("🔍 Fetching fresh investor stats...");
         const stats = await getInvestorStats(investorId);
-
-        await redis.set(cacheKey, JSON.stringify(stats), "EX", 600); // Cache for 10 minutes
-
         res.status(200).json(stats);
     } catch (error) {
         console.error("❌ Error fetching investor stats:", error);
@@ -105,23 +58,11 @@ exports.investorStats = async (req, res) => {
     }
 };
 
-// Get funding trends (daily, weekly, monthly)
+// Get funding trends
 exports.fundingTrends = async (req, res) => {
     try {
         const { interval = "monthly" } = req.query;
-        const cacheKey = `fundingTrends:${interval}`;
-        const cachedData = await redis.get(cacheKey);
-
-        if (cachedData) {
-            console.log(`📌 Serving cached funding trends (${interval})...`);
-            return res.status(200).json(JSON.parse(cachedData));
-        }
-
-        console.log(`🔍 Fetching fresh funding trends (${interval})...`);
         const trends = await getFundingTrends(interval);
-
-        await redis.set(cacheKey, JSON.stringify(trends), "EX", 600); // Cache for 10 minutes
-
         res.status(200).json(trends);
     } catch (error) {
         console.error("❌ Error fetching funding trends:", error);
@@ -129,78 +70,45 @@ exports.fundingTrends = async (req, res) => {
     }
 };
 
-// Get investor ROI
-exports.investmentROI = async (req, res) => {
+// Get investment ROI
+exports.getInvestmentROI = async (req, res) => {
     try {
-        const cacheKey = `investmentROI:${req.user.id}`;
-        const cachedData = await redis.get(cacheKey);
+        const investorId = req.user.id;
 
-        if (cachedData) {
-            console.log("📌 Serving cached ROI data...");
-            return res.status(200).json(JSON.parse(cachedData));
-        }
+        const { totalInvested, totalReturns, roi } = await getInvestmentROI(investorId);
 
-        console.log("🔍 Fetching fresh ROI data...");
-        const roiData = await getInvestmentROI(req.user.id);
-
-        await redis.set(cacheKey, JSON.stringify(roiData), "EX", 600); // Cache for 10 minutes
-
-        res.status(200).json(roiData);
+        res.status(200).json({ totalInvested, totalReturns, roi });
     } catch (error) {
-        console.error("❌ Error calculating ROI:", error);
-        res.status(500).json({ message: "Error calculating ROI", error: error.message });
+        console.error("❌ Error fetching ROI:", error);
+        res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
     }
 };
 
-// Add investment (new investment)
-exports.addInvestment = async (req, res) => {
-    try {
-        const { investorId, amount, industry, proposalId } = req.body;
-
-        if (!industry) {
-            return res.status(400).json({ message: "Industry is required" });
-        }
-
-        const newInvestment = await Investment.create({
-            investor: investorId,
-            amount,
-            industry,
-            proposal: proposalId,
-        });
-
-        const cacheKey = `investorStats:${investorId}`;
-        const updatedStats = await getInvestorStats(investorId);
-        await redis.set(cacheKey, JSON.stringify(updatedStats), "EX", 600); // Cache for 10 minutes
-
-        res.status(201).json({
-            message: "Investment added successfully",
-            investment: newInvestment,
-        });
-    } catch (error) {
-        console.error("❌ Error adding investment:", error);
-        res.status(500).json({ message: "Error adding investment", error: error.message });
-    }
-};
-
+// Search Investments
 exports.searchInvestments = async (req, res) => {
     try {
-        const { proposalTitle, industry, amount, status } = req.query;
+        const { industry, amount, status } = req.query;
         const filter = {};
 
-        // Add filters based on query params
-        if (proposalTitle) filter["proposal.title"] = { $regex: proposalTitle, $options: "i" }; // case-insensitive search
         if (industry) filter.industry = { $regex: industry, $options: "i" };
-        if (amount) filter.amount = { $gte: amount }; // greater than or equal to amount
-        if (status) filter.status = status;
+        if (amount) filter.amount = { $gte: Number(amount) };
 
-        // Populate proposal and investor fields
-        const investments = await Investment.find(filter)
+        let investmentsQuery = Investment.find(filter)
+            .populate({
+                path: "proposal",
+                select: "title industry fundingGoal status",
+                match: status ? { status: status } : {}, // Match proposals by status
+            })
             .populate("investor", "name email")
-            .populate("proposal", "title industry fundingGoal status")  // Ensure proposal is populated
-            .sort({ createdAt: -1 }); // Sort by creation date
+            .sort({ createdAt: -1 });
+
+        let investments = await investmentsQuery;
+
+        // Remove null proposals (when match fails)
+        investments = investments.filter((inv) => inv.proposal !== null);
 
         if (investments.length === 0) {
-            return res.status(404).json({ message: "No investments found matching your criteria" });
+            return res.status(404).json({ message: "No investments found" });
         }
 
         res.status(200).json(investments);
@@ -210,3 +118,16 @@ exports.searchInvestments = async (req, res) => {
     }
 };
 
+// Set default returns for investments without returns
+exports.setDefaultReturns = async (req, res) => {
+    try {
+        const result = await Investment.updateMany(
+            { returns: { $exists: false } },
+            { $set: { returns: 0 } }
+        );
+        res.json({ message: "Investment returns updated", result });
+    } catch (error) {
+        console.error("❌ Error updating investments:", error);
+        res.status(500).json({ message: "Error updating investments", error: error.message });
+    }
+};

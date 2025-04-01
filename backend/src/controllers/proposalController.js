@@ -1,9 +1,9 @@
 const Proposal = require("../models/Proposal");
 const User = require("../models/User");
 const mongoose = require("mongoose");
-const redis = require("../config/redis"); // Importing Redis client
+const redis = require("../config/redis"); 
 
-// Create Proposal (Only for Founders)
+
 exports.createProposal = async (req, res) => {
   try {
     if (req.user.role !== "founder") {
@@ -21,17 +21,17 @@ exports.createProposal = async (req, res) => {
     await proposal.save();
     res.status(201).json({ message: "Proposal created successfully", proposal });
 
-    // Clear cache for all proposals after a new one is created
+    
     redis.del("proposals:*");
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// Get All Proposals (With Optional Status Filter)
+
 exports.getProposals = async (req, res) => {
   try {
-    const { status } = req.query; // Get status from query params
+    const { status } = req.query; 
     const filter = {};
 
     if (status) {
@@ -43,7 +43,7 @@ exports.getProposals = async (req, res) => {
 
     const cacheKey = `proposals:${JSON.stringify(filter)}`;
 
-    // Check cache first
+
     redis.get(cacheKey, async (err, cachedData) => {
       if (err) {
         console.error("Redis error:", err);
@@ -71,60 +71,6 @@ exports.getProposals = async (req, res) => {
   }
 };
 
-// Get Specific Proposal (Optional: Ensure Status)
-// exports.getProposal = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { status } = req.query; // Optional status filter
-
-//     if (!mongoose.Types.ObjectId.isValid(id)) {
-//       return res.status(400).json({ message: "Invalid proposal ID" });
-//     }
-
-//     const filter = { _id: id };
-//     if (status) {
-//       if (!["Under Review", "Negotiating", "Funded"].includes(status)) {
-//         return res.status(400).json({ message: "Invalid status value" });
-//       }
-//       filter.status = status;
-//     }
-
-//     const cacheKey = `proposal:${id}`;
-
-//     // Check cache first
-//     redis.get(cacheKey, async (err, cachedData) => {
-//       if (err) {
-//         console.error("Redis error:", err);
-//         return res.status(500).json({ message: "Server error", error: err.message });
-//       }
-
-//       if (cachedData) {
-//         // Cache hit - return data from Redis
-//         return res.status(200).json(JSON.parse(cachedData));
-//       } else {
-//         // Cache miss - query database and store the result in Redis
-//         const proposal = await Proposal.findOne(filter)
-//           .populate("founder", "name email")
-//           .populate("investors.investor", "name email")
-//           .populate("comments.user", "name email")
-//           .lean();
-
-//         if (!proposal) {
-//           return res.status(404).json({ message: "Proposal not found" });
-//         }
-
-//         // Store data in Redis for future use
-//         redis.setex(cacheKey, 3600, JSON.stringify(proposal)); // Cache data for 1 hour
-//         return res.status(200).json(proposal);
-//       }
-//     });
-//   } catch (error) {
-//     console.error("Error fetching proposal:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// Get Specific Proposal (Optional: Ensure Status)
 exports.getProposal = async (req, res) => {
   try {
     const { id } = req.params;

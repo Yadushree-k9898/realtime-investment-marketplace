@@ -6,11 +6,14 @@ const authRoutes = require("./routes/authRoutes");
 const proposalRoutes = require("./routes/proposalRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const investmentRoutes = require("./routes/investmentRoutes"); 
+const cronJob = require('../src/cron/cronJobs');
 
 dotenv.config();
 connectDB();
 
 const app = express();
+
+cronJob;
 
 // ✅ Middleware
 app.use(express.json());
