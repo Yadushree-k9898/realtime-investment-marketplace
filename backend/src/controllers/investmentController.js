@@ -8,41 +8,63 @@ const isValidProposalId = (proposalId) => {
     return mongoose.Types.ObjectId.isValid(proposalId) && proposalId.length === 24;
 };
 
+// Invest in a proposal
 exports.investInProposal = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  try {
-    const { amount, industry, investmentType, investmentStage } = req.body;
+    try {
+        const { amount, industry, investmentType, investmentStage } = req.body;
 
-    // Validate the proposal ID
-    if (!isValidProposalId(req.params.id)) {
-      return res.status(400).json({ message: "Invalid proposal ID" });
+        // Validate proposal ID
+        if (!isValidProposalId(req.params.id)) {
+            return res.status(400).json({ message: "Invalid proposal ID" });
+        }
+
+        const proposal = await Proposal.findById(req.params.id).session(session);
+        if (!proposal) return res.status(404).json({ message: "Proposal not found" });
+
+        // Validate investment details
+        if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: "Invalid investment amount" });
+        if (!industry) return res.status(400).json({ message: "Industry is required" });
+        if (!["equity", "debt", "convertible"].includes(investmentType)) return res.status(400).json({ message: "Invalid investment type" });
+        if (!["seed", "seriesA", "seriesB", "IPO"].includes(investmentStage)) return res.status(400).json({ message: "Invalid investment stage" });
+
+        let equityOwnership = 0;
+
+        if (investmentType === "equity" && proposal.fundingGoal > 0) {
+            equityOwnership = (amount / proposal.fundingGoal) * 100;
+        }
+
+        const newInvestment = new Investment({
+            investor: req.user.id,
+            amount,
+            industry,
+            proposal: proposal._id,
+            equityOwnership,
+            investmentType,
+            investmentStage,
+            status: "pending",
+        });
+
+        await newInvestment.save({ session });
+
+        // Update the proposal with the investor's contribution
+        await proposal.updateInvestor(req.user.id, amount);
+
+        await session.commitTransaction();
+        session.endSession();
+
+        res.json({
+            message: "Investment successful",
+            investment: newInvestment,
+        });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        console.error("❌ Error in investment:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
-
-    const proposal = await Proposal.findById(req.params.id).session(session);
-    if (!proposal) return res.status(404).json({ message: "Proposal not found" });
-
-    // Validate investment details
-    if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: "Invalid investment amount" });
-    if (!industry) return res.status(400).json({ message: "Industry is required" });
-    if (!["equity", "debt", "convertible"].includes(investmentType)) return res.status(400).json({ message: "Invalid investment type" });
-    if (!["seed", "seriesA", "seriesB", "IPO"].includes(investmentStage)) return res.status(400).json({ message: "Invalid investment stage" });
-
-    // Update the proposal with the investor's contribution
-    await proposal.updateInvestor(req.user.id, amount);
-
-    // Commit the transaction
-    await session.commitTransaction();
-    session.endSession();
-
-    res.json({ message: "Investment successful", updatedProposal: proposal });
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("❌ Error in investment:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
 };
 
 // Get investor stats (including ROI)
@@ -70,19 +92,59 @@ exports.fundingTrends = async (req, res) => {
     }
 };
 
-// Get investment ROI
 exports.getInvestmentROI = async (req, res) => {
     try {
         const investorId = req.user.id;
 
-        const { totalInvested, totalReturns, roi } = await getInvestmentROI(investorId);
+        // Fetch all investments made by the investor
+        const investments = await Investment.find({ investor: investorId })
+            .populate("proposal", "fundingGoal totalReturns"); // Populate proposals
 
-        res.status(200).json({ totalInvested, totalReturns, roi });
+        if (!investments.length) {
+            return res.status(404).json({ message: "No investments found for this investor" });
+        }
+
+        // Aggregate data for each proposal
+        let totalInvested = 0;
+        let totalReturns = 0;
+        let roiData = [];
+
+        investments.forEach((investment) => {
+            const proposal = investment.proposal;
+            const investedAmount = investment.amount;
+
+            // Sum total investments
+            totalInvested += investedAmount;
+
+            // Calculate ROI for each proposal
+            const returns = proposal.totalReturns !== undefined ? proposal.totalReturns : 0; // Default to 0 if totalReturns is undefined
+            totalReturns += returns;
+
+            // Calculate ROI for this proposal
+            const roi = (returns - investedAmount) / investedAmount * 100;
+            roiData.push({
+                proposal: proposal._id,
+                roi: roi.toFixed(2), // ROI in percentage
+                investedAmount: investedAmount,
+                returns: returns,
+            });
+        });
+
+        // Calculate total ROI for the investor across all investments
+        const totalRoi = ((totalReturns - totalInvested) / totalInvested) * 100;
+
+        res.status(200).json({
+            totalInvested,
+            totalReturns,
+            totalRoi: totalRoi.toFixed(2),
+            roiByProposal: roiData,
+        });
     } catch (error) {
         console.error("❌ Error fetching ROI:", error);
         res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
     }
 };
+
 
 // Search Investments
 exports.searchInvestments = async (req, res) => {
