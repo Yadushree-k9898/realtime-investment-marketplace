@@ -152,7 +152,7 @@ exports.investorStats = async (req, res) => {
     }
 };
 
-// Get funding trends
+// Get funding trends - Enhanced for Chart.js
 exports.fundingTrends = async (req, res) => {
     try {
         const investments = await Investment.aggregate([
@@ -173,7 +173,13 @@ exports.fundingTrends = async (req, res) => {
                     },
                     totalAmount: { $sum: "$amount" },
                     count: { $sum: 1 },
-                    averageAmount: { $avg: "$amount" }
+                    averageAmount: { $avg: "$amount" },
+                    // Add metrics for charts
+                    successfulInvestments: {
+                        $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] }
+                    },
+                    totalReturns: { $sum: "$returns" },
+                    avgRoi: { $avg: "$roi" }
                 }
             },
             {
@@ -185,19 +191,107 @@ exports.fundingTrends = async (req, res) => {
                     period: "$_id.month",
                     totalAmount: 1,
                     count: 1,
-                    averageAmount: { $round: ["$averageAmount", 2] }
+                    averageAmount: { $round: ["$averageAmount", 2] },
+                    successRate: {
+                        $multiply: [
+                            { $divide: ["$successfulInvestments", "$count"] },
+                            100
+                        ]
+                    },
+                    totalReturns: 1,
+                    avgRoi: { $round: ["$avgRoi", 2] }
                 }
             }
         ]);
 
-        if (investments.length === 0) {
-            return res.status(200).json([]);
-        }
+        // Format for Chart.js
+        const chartData = {
+            labels: investments.map(item => item.period),
+            datasets: [
+                {
+                    label: 'Total Investment Amount',
+                    data: investments.map(item => item.totalAmount)
+                },
+                {
+                    label: 'Average ROI',
+                    data: investments.map(item => item.avgRoi)
+                },
+                {
+                    label: 'Success Rate',
+                    data: investments.map(item => item.successRate)
+                }
+            ],
+            metrics: {
+                totalInvestments: investments.reduce((sum, item) => sum + item.count, 0),
+                totalAmount: investments.reduce((sum, item) => sum + item.totalAmount, 0),
+                averageROI: investments.reduce((sum, item) => sum + item.avgRoi, 0) / investments.length || 0
+            }
+        };
 
-        res.status(200).json(investments);
+        res.status(200).json(chartData);
     } catch (error) {
         console.error("❌ Error fetching funding trends:", error);
         res.status(500).json({ message: "Error fetching funding trends", error: error.message });
+    }
+};
+
+// Get total investments analysis
+exports.getTotalInvestments = async (req, res) => {
+    try {
+        const investorId = req.user.id;
+
+        const analysis = await Investment.aggregate([
+            {
+                $match: { investor: new mongoose.Types.ObjectId(investorId) }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalInvested: { $sum: "$amount" },
+                    totalReturns: { $sum: "$returns" },
+                    investmentCount: { $sum: 1 },
+                    averageAmount: { $avg: "$amount" },
+                    byIndustry: {
+                        $push: {
+                            industry: "$industry",
+                            amount: "$amount"
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalInvested: 1,
+                    totalReturns: 1,
+                    investmentCount: 1,
+                    averageAmount: { $round: ["$averageAmount", 2] },
+                    industryBreakdown: "$byIndustry"
+                }
+            }
+        ]);
+
+        // Format for charts
+        const chartData = {
+            summary: analysis[0] || {
+                totalInvested: 0,
+                totalReturns: 0,
+                investmentCount: 0,
+                averageAmount: 0
+            },
+            pieChart: {
+                labels: [...new Set(analysis[0]?.industryBreakdown.map(item => item.industry))],
+                data: analysis[0]?.industryBreakdown.reduce((acc, item) => {
+                    acc[item.industry] = (acc[item.industry] || 0) + item.amount;
+                    return acc;
+                }, {})
+            }
+        };
+
+        res.status(200).json(chartData);
+    } catch (error) {
+        console.error("❌ Error analyzing investments:", error);
+        res.status(500).json({ message: "Error analyzing investments", error: error.message });
     }
 };
 
