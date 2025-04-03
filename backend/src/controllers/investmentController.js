@@ -15,50 +15,71 @@ exports.investInProposal = async (req, res) => {
 
     try {
         const { amount, industry, investmentType, investmentStage } = req.body;
+        const proposalId = req.params.id;
 
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        if (!mongoose.Types.ObjectId.isValid(proposalId)) {
             return res.status(400).json({ message: "Invalid proposal ID" });
         }
 
-        const proposal = await Proposal.findById(req.params.id).session(session);
-        if (!proposal) return res.status(404).json({ message: "Proposal not found" });
+        const proposal = await Proposal.findById(proposalId).session(session);
+        if (!proposal) {
+            return res.status(404).json({ message: "Proposal not found" });
+        }
 
-        if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: "Invalid investment amount" });
+        // Calculate initial values
+        const returns = amount * 1.2; // 20% returns
+        const roi = ((returns - amount) / amount) * 100;
+        const equityOwnership = (amount / proposal.fundingGoal) * 100;
+        const expectedReturn = amount * 1.5; // 50% expected return
 
-        // Calculate initial returns (20% growth)
-        const initialReturns = amount * 1.2;
-
-        const newInvestment = new Investment({
+        const investment = new Investment({
             investor: req.user.id,
-            proposal: proposal._id,
+            proposal: proposalId,
             amount,
-            industry,
+            industry: industry || proposal.industry,
             investmentType,
             investmentStage,
-            status: "active",
-            returns: initialReturns, // Set initial returns
+            status: 'active',
+            returns,
+            roi,
+            equityOwnership,
+            riskLevel: 'medium',
+            expectedReturn,
+            performanceMetrics: {
+                currentValue: amount,
+                growthRate: 20,
+                volatility: 10
+            }
         });
 
-        await newInvestment.save({ session });
+        await investment.save({ session });
+
+        // Update proposal
+        proposal.currentFunding = (proposal.currentFunding || 0) + amount;
+        proposal.returns = (proposal.returns || 0) + returns;
         
-        // Update proposal with new investment and returns
-        proposal.totalInvestment = (proposal.totalInvestment || 0) + amount;
-        proposal.totalReturns = (proposal.totalReturns || 0) + initialReturns;
+        if (!proposal.investors) {
+            proposal.investors = [];
+        }
+        
+        proposal.investors.push({
+            investor: req.user.id,
+            amount
+        });
+
         await proposal.save({ session });
-
         await session.commitTransaction();
-        session.endSession();
 
-        res.json({ 
-            message: "Investment successful", 
-            investment: newInvestment,
-            returns: initialReturns
+        res.status(201).json({
+            message: "Investment successful",
+            investment
         });
     } catch (error) {
         await session.abortTransaction();
+        console.error("❌ Error creating investment:", error);
+        res.status(500).json({ message: "Error creating investment", error: error.message });
+    } finally {
         session.endSession();
-        console.error("❌ Error in investment:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 
@@ -134,8 +155,30 @@ exports.investorStats = async (req, res) => {
 // Get funding trends
 exports.fundingTrends = async (req, res) => {
     try {
-        const { interval = "monthly" } = req.query;
-        const trends = await getFundingTrends(interval);
+        const investments = await Investment.aggregate([
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$createdAt" },
+                        month: { $month: "$createdAt" }
+                    },
+                    totalAmount: { $sum: "$amount" },
+                    count: { $sum: 1 },
+                    averageAmount: { $avg: "$amount" }
+                }
+            },
+            {
+                $sort: { "_id.year": -1, "_id.month": -1 }
+            }
+        ]);
+
+        const trends = investments.map(item => ({
+            period: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+            totalAmount: item.totalAmount,
+            count: item.count,
+            averageAmount: Math.round(item.averageAmount)
+        }));
+
         res.status(200).json(trends);
     } catch (error) {
         console.error("❌ Error fetching funding trends:", error);
@@ -206,46 +249,50 @@ exports.getInvestmentROI = async (req, res) => {
 exports.searchInvestments = async (req, res) => {
     try {
         const { industry, amount, status } = req.query;
-        const filter = {};
+        let filter = { investor: req.user.id };
 
-        if (industry) filter.industry = { $regex: industry, $options: "i" };
+        if (industry) filter.industry = new RegExp(industry, 'i');
         if (amount) filter.amount = { $gte: Number(amount) };
+        if (status) filter.status = status;
 
-        let investmentsQuery = Investment.find(filter)
+        const investments = await Investment.find(filter)
             .populate({
-                path: "proposal",
-                select: "title industry fundingGoal status",
-                match: status ? { status: status } : {}, // Match proposals by status
+                path: 'proposal',
+                select: 'title industry fundingGoal status'
             })
-            .populate("investor", "name email")
-            .sort({ createdAt: -1 });
+            .sort('-createdAt');
 
-        let investments = await investmentsQuery;
-
-        // Remove null proposals (when match fails)
-        investments = investments.filter((inv) => inv.proposal !== null);
-
-        if (investments.length === 0) {
-            return res.status(404).json({ message: "No investments found" });
-        }
-
-        res.status(200).json(investments);
+        res.status(200).json({
+            count: investments.length,
+            investments: investments
+        });
     } catch (error) {
         console.error("❌ Error searching investments:", error);
         res.status(500).json({ message: "Error searching investments", error: error.message });
     }
 };
 
-// Set default returns for investments without returns
+// Set default returns
 exports.setDefaultReturns = async (req, res) => {
     try {
-        const result = await Investment.updateMany(
-            { returns: { $exists: false } },
-            { $set: { returns: 0 } }
-        );
-        res.json({ message: "Investment returns updated", result });
+        const investments = await Investment.find({ investor: req.user.id });
+        let updatedCount = 0;
+
+        for (let investment of investments) {
+            if (!investment.returns) {
+                investment.returns = investment.amount * 1.2; // 20% returns
+                await investment.save();
+                updatedCount++;
+            }
+        }
+
+        res.status(200).json({
+            message: "Investment returns updated",
+            updated: updatedCount,
+            total: investments.length
+        });
     } catch (error) {
-        console.error("❌ Error updating investments:", error);
-        res.status(500).json({ message: "Error updating investments", error: error.message });
+        console.error("❌ Error updating returns:", error);
+        res.status(500).json({ message: "Error updating returns", error: error.message });
     }
 };

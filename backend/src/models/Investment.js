@@ -85,10 +85,10 @@ InvestmentSchema.methods.calculateReturns = async function (proposalPerformance)
 InvestmentSchema.pre('save', async function(next) {
     if (this.isNew || this.isModified('amount')) {
         const baseReturns = {
-            'seed': 0.30,
-            'seriesA': 0.25, 
-            'seriesB': 0.20,
-            'IPO': 0.15
+            'seed': 1.3,     // 30% return
+            'seriesA': 1.25, // 25% return
+            'seriesB': 1.2,  // 20% return
+            'IPO': 1.15     // 15% return
         };
 
         const typeMultiplier = {
@@ -97,18 +97,24 @@ InvestmentSchema.pre('save', async function(next) {
             'convertible': 1.3
         };
 
-        const baseReturn = baseReturns[this.investmentStage] || 0.20;
+        const baseReturn = baseReturns[this.investmentStage] || 1.2;
         const multiplier = typeMultiplier[this.investmentType] || 1.0;
 
-        // Ensure returns are never negative
-        this.returns = Math.max(0, this.amount * baseReturn * multiplier);
+        // Calculate returns
+        this.returns = this.amount * baseReturn * multiplier;
+        
+        // Calculate ROI
+        this.roi = ((this.returns - this.amount) / this.amount) * 100;
+        
+        // Update performance metrics
+        this.performanceMetrics = {
+            currentValue: this.amount,
+            growthRate: (baseReturn - 1) * 100,
+            volatility: 10
+        };
 
-        // Calculate ROI only if amount is greater than 0
-        if (this.amount > 0) {
-            this.roi = ((this.returns - this.amount) / this.amount) * 100;
-            // Ensure ROI is never less than -100%
-            this.roi = Math.max(-100, this.roi);
-        }
+        // Calculate expected return
+        this.expectedReturn = this.amount * 1.5; // 50% expected return
     }
     next();
 });
