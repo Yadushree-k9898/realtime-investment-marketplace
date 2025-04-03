@@ -157,10 +157,19 @@ exports.fundingTrends = async (req, res) => {
     try {
         const investments = await Investment.aggregate([
             {
+                $match: {
+                    createdAt: { $exists: true }
+                }
+            },
+            {
                 $group: {
                     _id: {
-                        year: { $year: "$createdAt" },
-                        month: { $month: "$createdAt" }
+                        month: { 
+                            $dateToString: { 
+                                format: "%Y-%m", 
+                                date: "$createdAt" 
+                            }
+                        }
                     },
                     totalAmount: { $sum: "$amount" },
                     count: { $sum: 1 },
@@ -168,18 +177,24 @@ exports.fundingTrends = async (req, res) => {
                 }
             },
             {
-                $sort: { "_id.year": -1, "_id.month": -1 }
+                $sort: { "_id.month": -1 }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    period: "$_id.month",
+                    totalAmount: 1,
+                    count: 1,
+                    averageAmount: { $round: ["$averageAmount", 2] }
+                }
             }
         ]);
 
-        const trends = investments.map(item => ({
-            period: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
-            totalAmount: item.totalAmount,
-            count: item.count,
-            averageAmount: Math.round(item.averageAmount)
-        }));
+        if (investments.length === 0) {
+            return res.status(200).json([]);
+        }
 
-        res.status(200).json(trends);
+        res.status(200).json(investments);
     } catch (error) {
         console.error("❌ Error fetching funding trends:", error);
         res.status(500).json({ message: "Error fetching funding trends", error: error.message });
@@ -249,22 +264,31 @@ exports.getInvestmentROI = async (req, res) => {
 exports.searchInvestments = async (req, res) => {
     try {
         const { industry, amount, status } = req.query;
-        let filter = { investor: req.user.id };
+        const filter = { investor: req.user.id };
 
-        if (industry) filter.industry = new RegExp(industry, 'i');
-        if (amount) filter.amount = { $gte: Number(amount) };
-        if (status) filter.status = status;
+        if (industry) {
+            filter.industry = new RegExp(industry, 'i');
+        }
+        if (amount) {
+            filter.amount = { $gte: Number(amount) };
+        }
+        if (status) {
+            filter.status = status.toLowerCase();
+        }
 
         const investments = await Investment.find(filter)
             .populate({
                 path: 'proposal',
                 select: 'title industry fundingGoal status'
             })
-            .sort('-createdAt');
+            .populate('investor', 'name email')
+            .sort('-createdAt')
+            .lean();
 
+        // Return empty array instead of 404
         res.status(200).json({
             count: investments.length,
-            investments: investments
+            investments: investments || []
         });
     } catch (error) {
         console.error("❌ Error searching investments:", error);
