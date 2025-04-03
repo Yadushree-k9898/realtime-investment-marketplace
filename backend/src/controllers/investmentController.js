@@ -264,35 +264,66 @@ exports.getInvestmentROI = async (req, res) => {
 exports.searchInvestments = async (req, res) => {
     try {
         const { industry, amount, status } = req.query;
-        const filter = { investor: req.user.id };
+        
+        // Build base query
+        let query = {};
 
+        // Add investor filter
+        if (req.user && req.user.id) {
+            query.investor = new mongoose.Types.ObjectId(req.user.id);
+        }
+
+        // Add industry filter (case insensitive)
         if (industry) {
-            filter.industry = new RegExp(industry, 'i');
-        }
-        if (amount) {
-            filter.amount = { $gte: Number(amount) };
-        }
-        if (status) {
-            filter.status = status.toLowerCase();
+            query.industry = { $regex: industry, $options: 'i' };
         }
 
-        const investments = await Investment.find(filter)
+        // Add amount filter
+        if (amount && !isNaN(parseFloat(amount))) {
+            query.amount = { $gte: parseFloat(amount) };
+        }
+
+        // Add status filter only if explicitly provided and not "all"
+        if (status && status !== 'all' && status !== 'undefined') {
+            query.status = status.toLowerCase();
+        }
+
+        console.log('Executing Query:', JSON.stringify(query, null, 2));
+
+        // Execute query and get results
+        const investments = await Investment.find(query)
             .populate({
                 path: 'proposal',
-                select: 'title industry fundingGoal status'
+                select: 'title industry fundingGoal status createdAt'
             })
-            .populate('investor', 'name email')
             .sort('-createdAt')
             .lean();
 
-        // Return empty array instead of 404
-        res.status(200).json({
+        console.log(`Found ${investments.length} matching investments`);
+
+        // Format response
+        const response = {
+            success: true,
+            message: `Found ${investments.length} investments`,
             count: investments.length,
-            investments: investments || []
-        });
+            investments,
+            appliedFilters: {
+                industry: industry || 'all',
+                amount: amount ? parseFloat(amount) : 'all',
+                status: status || 'all'
+            },
+            query
+        };
+
+        return res.status(200).json(response);
+
     } catch (error) {
-        console.error("❌ Error searching investments:", error);
-        res.status(500).json({ message: "Error searching investments", error: error.message });
+        console.error('Search Error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error searching investments',
+            error: error.message
+        });
     }
 };
 
