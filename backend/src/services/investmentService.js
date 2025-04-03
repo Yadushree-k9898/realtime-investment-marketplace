@@ -5,48 +5,41 @@ const mongoose = require("mongoose");
 // Get investor stats (including ROI)
 const getInvestorStats = async (investorId) => {
     try {
-        console.log(`Fetching stats for investor ID: ${investorId}`);
-        
-        // Fetch investments grouped by proposal
         const investments = await Investment.find({ investor: investorId }).populate("proposal");
 
-        if (!investments || investments.length === 0) {
-            throw new Error("No investments found for this investor.");
-        }
-
+        let totalInvested = 0;
+        let totalReturns = 0;
         const statsByProposal = {};
-        let totalInvested = 0, totalReturns = 0;
 
         investments.forEach((investment) => {
-            const proposal = investment.proposal;
-            if (!proposal) return; // Skip if no proposal is associated
-
-            const proposalId = proposal._id.toString();
-            const proposalTitle = proposal.title;
-
-            // Initialize returns if not set
-            const returns = investment.returns || 0;
+            const proposalId = investment.proposal._id.toString();
             totalInvested += investment.amount;
-            totalReturns += returns;
+            totalReturns += investment.returns;
 
             if (!statsByProposal[proposalId]) {
                 statsByProposal[proposalId] = {
-                    proposalTitle,
-                    invested: 0,
-                    returns: 0,
-                    equityOwnership: 0,
+                    invested: investment.amount,
+                    returns: investment.returns,
+                    equityOwnership: investment.equityOwnership,
+                    roi: investment.roi,
                 };
+            } else {
+                statsByProposal[proposalId].invested += investment.amount;
+                statsByProposal[proposalId].returns += investment.returns;
+                statsByProposal[proposalId].equityOwnership += investment.equityOwnership;
+                statsByProposal[proposalId].roi =
+                    ((statsByProposal[proposalId].returns - statsByProposal[proposalId].invested) /
+                        statsByProposal[proposalId].invested) *
+                    100;
             }
-
-            statsByProposal[proposalId].invested += investment.amount;
-            statsByProposal[proposalId].returns += returns;
-            statsByProposal[proposalId].equityOwnership += investment.equityOwnership || 0;
         });
 
-        return { totalInvested, totalReturns, statsByProposal };
+        const totalROI = totalInvested > 0 ? ((totalReturns - totalInvested) / totalInvested) * 100 : 0;
+
+        return { totalInvested, totalReturns, statsByProposal, totalROI };
     } catch (error) {
         console.error("❌ Error in getInvestorStats:", error);
-        throw new Error("Error calculating investor stats.");
+        throw error;
     }
 };
 

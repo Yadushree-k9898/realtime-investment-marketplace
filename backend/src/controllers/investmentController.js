@@ -16,48 +16,43 @@ exports.investInProposal = async (req, res) => {
     try {
         const { amount, industry, investmentType, investmentStage } = req.body;
 
-        // Validate proposal ID
-        if (!isValidProposalId(req.params.id)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
             return res.status(400).json({ message: "Invalid proposal ID" });
         }
 
         const proposal = await Proposal.findById(req.params.id).session(session);
         if (!proposal) return res.status(404).json({ message: "Proposal not found" });
 
-        // Validate investment details
         if (isNaN(amount) || amount <= 0) return res.status(400).json({ message: "Invalid investment amount" });
-        if (!industry) return res.status(400).json({ message: "Industry is required" });
-        if (!["equity", "debt", "convertible"].includes(investmentType)) return res.status(400).json({ message: "Invalid investment type" });
-        if (!["seed", "seriesA", "seriesB", "IPO"].includes(investmentStage)) return res.status(400).json({ message: "Invalid investment stage" });
 
-        let equityOwnership = 0;
-
-        if (investmentType === "equity" && proposal.fundingGoal > 0) {
-            equityOwnership = (amount / proposal.fundingGoal) * 100;
-        }
+        // Calculate initial returns (20% growth)
+        const initialReturns = amount * 1.2;
 
         const newInvestment = new Investment({
             investor: req.user.id,
+            proposal: proposal._id,
             amount,
             industry,
-            proposal: proposal._id,
-            equityOwnership,
             investmentType,
             investmentStage,
-            status: "pending",
+            status: "active",
+            returns: initialReturns, // Set initial returns
         });
 
         await newInvestment.save({ session });
-
-        // Update the proposal with the investor's contribution
-        await proposal.updateInvestor(req.user.id, amount);
+        
+        // Update proposal with new investment and returns
+        proposal.totalInvestment = (proposal.totalInvestment || 0) + amount;
+        proposal.totalReturns = (proposal.totalReturns || 0) + initialReturns;
+        await proposal.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        res.json({
-            message: "Investment successful",
+        res.json({ 
+            message: "Investment successful", 
             investment: newInvestment,
+            returns: initialReturns
         });
     } catch (error) {
         await session.abortTransaction();
@@ -71,12 +66,96 @@ exports.investInProposal = async (req, res) => {
 exports.investorStats = async (req, res) => {
     try {
         const investorId = req.user.id;
+        const GROWTH_RATE = 1.2; // 20% growth rate
 
-        const stats = await getInvestorStats(investorId);
-        res.status(200).json(stats);
+        const investments = await Investment.aggregate([
+            { 
+                $match: { 
+                    investor: new mongoose.Types.ObjectId(investorId) 
+                }
+            },
+            {
+                $lookup: {
+                    from: 'proposals',
+                    localField: 'proposal',
+                    foreignField: '_id',
+                    as: 'proposalDetails'
+                }
+            },
+            {
+                $unwind: '$proposalDetails'
+            },
+            {
+                $group: {
+                    _id: '$proposal',
+                    totalInvested: { $sum: '$amount' },
+                    fundingGoal: { $first: '$proposalDetails.fundingGoal' },
+                    investments: { 
+                        $push: {
+                            amount: '$amount',
+                            returns: { $ifNull: ['$returns', null] }
+                        }
+                    }
+                }
+            }
+        ]);
+
+        let totalInvested = 0;
+        let totalReturns = 0;
+        const statsByProposal = {};
+
+        investments.forEach(inv => {
+            const invested = inv.totalInvested;
+            totalInvested += invested;
+
+            // Calculate fixed returns (20% growth) for each investment
+            const calculatedReturns = invested * GROWTH_RATE;
+            totalReturns += calculatedReturns;
+
+            // Calculate equity ownership percentage
+            const equityOwnership = Math.min(
+                ((invested / inv.fundingGoal) * 100),
+                100 // Cap at 100%
+            );
+
+            // Calculate ROI with guaranteed positive returns
+            const roi = 20; // Fixed 20% ROI based on GROWTH_RATE
+
+            statsByProposal[inv._id] = {
+                invested: invested,
+                returns: calculatedReturns,
+                equityOwnership: Number(equityOwnership.toFixed(2)),
+                roi: roi
+            };
+        });
+
+        // Set fixed ROI for total investments
+        const totalROI = 20; // Fixed 20% ROI
+
+        // Update returns in database to maintain consistency
+        for (let inv of investments) {
+            await Investment.updateMany(
+                { 
+                    proposal: inv._id,
+                    investor: investorId,
+                    returns: { $exists: false }
+                },
+                { $set: { returns: { $multiply: ['$amount', GROWTH_RATE] } } }
+            );
+        }
+
+        res.status(200).json({
+            totalInvested,
+            totalReturns,
+            statsByProposal,
+            totalROI
+        });
     } catch (error) {
         console.error("❌ Error fetching investor stats:", error);
-        res.status(500).json({ message: "Error fetching investor stats", error: error.message });
+        res.status(500).json({ 
+            message: "Error fetching investor stats", 
+            error: error.message 
+        });
     }
 };
 
@@ -91,58 +170,58 @@ exports.fundingTrends = async (req, res) => {
         res.status(500).json({ message: "Error fetching funding trends", error: error.message });
     }
 };
+
 exports.getInvestmentROI = async (req, res) => {
     try {
         const investorId = req.user.id;
 
-        // Fetch all investments made by the investor
         const investments = await Investment.find({ investor: investorId })
-            .populate("proposal", "fundingGoal totalReturns"); // Populate proposals
+            .populate("proposal", "fundingGoal totalReturns");
 
         if (!investments.length) {
             return res.status(404).json({ message: "No investments found for this investor" });
         }
 
-        // Aggregate data for each proposal
         let totalInvested = 0;
         let totalReturns = 0;
         let roiData = [];
 
         investments.forEach((investment) => {
             const proposal = investment.proposal;
-
-            // Ensure proposal exists before trying to access its properties
             if (!proposal) {
                 console.error("Proposal not found for investment", investment._id);
-                return; // Skip this investment if no proposal is found
+                return;
             }
 
             const investedAmount = investment.amount;
-
-            // Sum total investments
             totalInvested += investedAmount;
 
-            // Ensure totalReturns is defined
-            const returns = proposal.totalReturns !== undefined ? proposal.totalReturns : 0; // Default to 0 if totalReturns is undefined
+            // Use investment's own returns instead of proposal returns
+            const returns = investment.returns || (investedAmount * 1.2); // 20% default growth
             totalReturns += returns;
 
-            // Calculate ROI for this proposal
-            const roi = investedAmount > 0 ? ((returns - investedAmount) / investedAmount) * 100 : 0; // Avoid division by zero
+            // Calculate ROI
+            const gainOrLoss = returns - investedAmount;
+            const roi = ((returns - investedAmount) / investedAmount) * 100;
+
             roiData.push({
                 proposal: proposal._id,
-                roi: roi.toFixed(2), // ROI in percentage
-                investedAmount: investedAmount,
-                returns: returns,
+                roi: parseFloat(roi.toFixed(2)),
+                investedAmount,
+                returns,
+                gainOrLoss
             });
         });
 
-        // Calculate total ROI for the investor across all investments
-        const totalRoi = totalInvested > 0 ? ((totalReturns - totalInvested) / totalInvested) * 100 : 0;
+        // Calculate total ROI
+        const totalGainOrLoss = totalReturns - totalInvested;
+        const totalRoi = ((totalReturns - totalInvested) / totalInvested) * 100;
 
         res.status(200).json({
             totalInvested,
             totalReturns,
             totalRoi: totalRoi.toFixed(2),
+            totalGainOrLoss,
             roiByProposal: roiData,
         });
     } catch (error) {
@@ -150,61 +229,6 @@ exports.getInvestmentROI = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
     }
 };
-
-
-// exports.getInvestmentROI = async (req, res) => {
-//     try {
-//         const investorId = req.user.id;
-
-//         // Fetch all investments made by the investor
-//         const investments = await Investment.find({ investor: investorId })
-//             .populate("proposal", "fundingGoal totalReturns"); // Populate proposals
-
-//         if (!investments.length) {
-//             return res.status(404).json({ message: "No investments found for this investor" });
-//         }
-
-//         // Aggregate data for each proposal
-//         let totalInvested = 0;
-//         let totalReturns = 0;
-//         let roiData = [];
-
-//         investments.forEach((investment) => {
-//             const proposal = investment.proposal;
-//             const investedAmount = investment.amount;
-
-//             // Sum total investments
-//             totalInvested += investedAmount;
-
-//             // Calculate ROI for each proposal
-//             const returns = proposal.totalReturns !== undefined ? proposal.totalReturns : 0; // Default to 0 if totalReturns is undefined
-//             totalReturns += returns;
-
-//             // Calculate ROI for this proposal
-//             const roi = (returns - investedAmount) / investedAmount * 100;
-//             roiData.push({
-//                 proposal: proposal._id,
-//                 roi: roi.toFixed(2), // ROI in percentage
-//                 investedAmount: investedAmount,
-//                 returns: returns,
-//             });
-//         });
-
-//         // Calculate total ROI for the investor across all investments
-//         const totalRoi = ((totalReturns - totalInvested) / totalInvested) * 100;
-
-//         res.status(200).json({
-//             totalInvested,
-//             totalReturns,
-//             totalRoi: totalRoi.toFixed(2),
-//             roiByProposal: roiData,
-//         });
-//     } catch (error) {
-//         console.error("❌ Error fetching ROI:", error);
-//         res.status(500).json({ message: "Failed to fetch ROI", error: error.message });
-//     }
-// };
-
 
 // Search Investments
 exports.searchInvestments = async (req, res) => {

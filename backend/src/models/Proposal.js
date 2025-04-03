@@ -29,20 +29,11 @@ const ProposalSchema = new mongoose.Schema(
 
 // Update the returns for a proposal based on the current funding and funding goal
 ProposalSchema.methods.updateProposalReturns = async function () {
-  if (this.fundingGoal > 0) {
-    const returnsAmount = (this.currentFunding / this.fundingGoal) * 0.2 * this.fundingGoal;
-    this.returns = returnsAmount;
-    
-    // If fundingGoal has been reached or surpassed, set status to "Funded"
-    if (this.currentFunding >= this.fundingGoal) {
-      this.status = "Funded";
-    }
+    const performanceMultiplier = 1.2; // Example: 20% growth for the proposal
+    const totalReturns = this.currentFunding * performanceMultiplier;
 
-    // Save the proposal with updated returns and status
-    await this.save();
-  } else {
-    console.error("❌ Invalid funding goal for the proposal.");
-  }
+    this.returns = totalReturns;
+    await this.save(); // Save the updated proposal
 };
 
 // Method to add or update an investor's contribution in the proposal
