@@ -66,90 +66,62 @@ exports.investInProposal = async (req, res) => {
 exports.investorStats = async (req, res) => {
     try {
         const investorId = req.user.id;
-        const GROWTH_RATE = 1.2; // 20% growth rate
+        const GROWTH_RATE = 1.2; // 20% growth
 
-        const investments = await Investment.aggregate([
-            { 
-                $match: { 
-                    investor: new mongoose.Types.ObjectId(investorId) 
-                }
-            },
-            {
-                $lookup: {
-                    from: 'proposals',
-                    localField: 'proposal',
-                    foreignField: '_id',
-                    as: 'proposalDetails'
-                }
-            },
-            {
-                $unwind: '$proposalDetails'
-            },
-            {
-                $group: {
-                    _id: '$proposal',
-                    totalInvested: { $sum: '$amount' },
-                    fundingGoal: { $first: '$proposalDetails.fundingGoal' },
-                    investments: { 
-                        $push: {
-                            amount: '$amount',
-                            returns: { $ifNull: ['$returns', null] }
-                        }
-                    }
-                }
-            }
-        ]);
+        // Get all investments directly with proposal details
+        const investments = await Investment.find({ investor: investorId })
+            .populate('proposal', 'fundingGoal')
+            .lean();
+
+        if (!investments.length) {
+            return res.status(404).json({ message: "No investments found" });
+        }
 
         let totalInvested = 0;
         let totalReturns = 0;
         const statsByProposal = {};
 
-        investments.forEach(inv => {
-            const invested = inv.totalInvested;
+        // Group investments by proposal
+        const groupedInvestments = investments.reduce((acc, inv) => {
+            const proposalId = inv.proposal._id.toString();
+            if (!acc[proposalId]) {
+                acc[proposalId] = {
+                    invested: 0,
+                    returns: 0,
+                    fundingGoal: inv.proposal.fundingGoal
+                };
+            }
+            acc[proposalId].invested += inv.amount;
+            acc[proposalId].returns += inv.amount * GROWTH_RATE;
+            return acc;
+        }, {});
+
+        // Calculate statistics for each proposal
+        Object.entries(groupedInvestments).forEach(([proposalId, data]) => {
+            const invested = data.invested;
+            const returns = data.returns;
+            
             totalInvested += invested;
+            totalReturns += returns;
 
-            // Calculate fixed returns (20% growth) for each investment
-            const calculatedReturns = invested * GROWTH_RATE;
-            totalReturns += calculatedReturns;
-
-            // Calculate equity ownership percentage
-            const equityOwnership = Math.min(
-                ((invested / inv.fundingGoal) * 100),
-                100 // Cap at 100%
-            );
-
-            // Calculate ROI with guaranteed positive returns
-            const roi = 20; // Fixed 20% ROI based on GROWTH_RATE
-
-            statsByProposal[inv._id] = {
+            statsByProposal[proposalId] = {
                 invested: invested,
-                returns: calculatedReturns,
-                equityOwnership: Number(equityOwnership.toFixed(2)),
-                roi: roi
+                returns: returns,
+                equityOwnership: Math.min(
+                    Number(((invested / data.fundingGoal) * 100).toFixed(2)),
+                    100
+                ),
+                roi: 20 // Fixed 20% ROI
             };
         });
 
-        // Set fixed ROI for total investments
-        const totalROI = 20; // Fixed 20% ROI
-
-        // Update returns in database to maintain consistency
-        for (let inv of investments) {
-            await Investment.updateMany(
-                { 
-                    proposal: inv._id,
-                    investor: investorId,
-                    returns: { $exists: false }
-                },
-                { $set: { returns: { $multiply: ['$amount', GROWTH_RATE] } } }
-            );
-        }
-
         res.status(200).json({
-            totalInvested,
-            totalReturns,
+            totalInvested: Math.round(totalInvested),
+            totalReturns: Math.round(totalReturns),
             statsByProposal,
-            totalROI
+            totalROI: 20
         });
+
     } catch (error) {
         console.error("❌ Error fetching investor stats:", error);
         res.status(500).json({ 
