@@ -1,35 +1,33 @@
-import { useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { loginUser } from "@/redux/slices/authSlice";
 import { Mail, Lock, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loginUser } from "@/redux/slices/authSlice";
 
 const Login = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
 
-  const handleEmailChange = useCallback((e) => {
-    setEmail(e.target.value);
-  }, []);
-
-  const handlePasswordChange = useCallback((e) => {
-    setPassword(e.target.value);
-  }, []);
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
       if (!email || !password) return;
       try {
-        const res = await dispatch(loginUser({ email, password })).unwrap();
-        if (res) {
-          window.location.href = "/dashboard";
-        }
+        await dispatch(loginUser({ email, password })).unwrap();
       } catch (err) {
         console.error(err);
       }
@@ -80,7 +78,7 @@ const Login = () => {
                 placeholder="name@example.com"
                 className="pl-10"
                 value={email}
-                onChange={handleEmailChange}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -96,7 +94,7 @@ const Login = () => {
                 placeholder="••••••••"
                 className="pl-10"
                 value={password}
-                onChange={handlePasswordChange}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -115,7 +113,7 @@ const Login = () => {
           Don’t have an account?{" "}
           <button
             type="button"
-            onClick={() => (window.location.href = "/register")}
+            onClick={() => navigate("/register")}
             className="text-emerald-600 hover:underline"
           >
             Register

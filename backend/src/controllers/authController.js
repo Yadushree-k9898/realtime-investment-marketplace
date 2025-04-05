@@ -30,28 +30,61 @@ exports.register = async (req, res) => {
 };
 
 // Login User
+// exports.login = async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+
+//         if (!email || !password) {
+//             return res.status(400).json({ message: 'All fields are required' });
+//         }
+
+//         const user = await User.findOne({ email });
+//         if (!user || !(await user.comparePassword(password))) {
+//             return res.status(401).json({ message: 'Invalid credentials' });
+//         }
+
+//         res.json({
+//             message: 'Login successful',
+//             user: { id: user._id, name: user.name, email: user.email, role: user.role },
+//             token: generateToken(user)
+//         });
+//     } catch (error) {
+//         res.status(500).json({ message: 'Server error', error: error.message });
+//     }
+// };
+// Login User
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({ message: 'All fields are required' });
-        }
-
-        const user = await User.findOne({ email });
-        if (!user || !(await user.comparePassword(password))) {
-            return res.status(401).json({ message: 'Invalid credentials' });
-        }
-
-        res.json({
-            message: 'Login successful',
-            user: { id: user._id, name: user.name, email: user.email, role: user.role },
-            token: generateToken(user)
-        });
+      const { email, password } = req.body;
+  
+      if (!email || !password) {
+        return res.status(400).json({ message: 'All fields are required' });
+      }
+  
+      const user = await User.findOne({ email });
+      const isPasswordValid = user && (await user.comparePassword(password));
+  
+      if (!user || !isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+  
+      const token = generateToken(user);
+  
+      res.json({
+        message: 'Login successful',
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        token,
+      });
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
-};
+  };
+  
 
 // Logout User (Blacklist Token)
 exports.logout = async (req, res) => {
