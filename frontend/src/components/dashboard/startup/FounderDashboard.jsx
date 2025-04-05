@@ -1,8 +1,7 @@
 // components/dashboard/startup/StartupDashboard.jsx
 import React from 'react';
 import DashboardHeader from '../common/DashboardHeader';
-import ProposalOverview from './ProposalOverview';
-import FundingProgress from './FundingProgress';
+import ProposalOverviewWithProgress from './ProposalOverviewWithProgress';
 import CreateProposalForm from './CreateProposalForm';
 
 const FounderDashboard = () => {
@@ -10,8 +9,7 @@ const FounderDashboard = () => {
     <div>
       <DashboardHeader title="Founder Dashboard" />
       <CreateProposalForm />
-      <ProposalOverview />
-      <FundingProgress />
+      <ProposalOverviewWithProgress/>
     </div>
   );
 };
