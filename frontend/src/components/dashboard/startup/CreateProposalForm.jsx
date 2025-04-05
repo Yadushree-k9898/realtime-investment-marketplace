@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 const CreateProposalForm = () => {
   const dispatch = useDispatch();
   const { loading } = useSelector((state) => state.proposals);
+  const user = useSelector((state) => state.auth.user);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -23,25 +24,22 @@ const CreateProposalForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    const user = JSON.parse(localStorage.getItem("user"));
-    console.log("User token in localStorage:", user?.token);
-  
+
     const { title, description, fundingGoal } = formData;
-  
+
     if (!title || !description || !fundingGoal) {
       return toast.error("Please fill in all required fields");
     }
-  
+
     if (!user?.token) {
       return toast.error("You must be logged in to create a proposal");
     }
-  
+
     try {
       console.log("Submitting proposal:", formData);
-      await dispatch(createProposal({ formData, token: user.token })).unwrap();
+      await dispatch(createProposal(formData)).unwrap();
       toast.success("Proposal created successfully");
-  
+
       setFormData({
         title: '',
         description: '',
@@ -52,13 +50,23 @@ const CreateProposalForm = () => {
       });
     } catch (error) {
       console.error("Proposal creation failed:", error);
-      toast.error(error?.message || "Something went wrong");
+      toast.error(error || "Something went wrong");
     }
   };
-  
+
+  if (!user) {
+    return (
+      <div className="p-4 bg-yellow-100 text-yellow-800 rounded-xl shadow">
+        You must be logged in to create a proposal.
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Create New Proposal</h3>
+      <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
+        Create New Proposal
+      </h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"

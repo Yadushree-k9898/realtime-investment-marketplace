@@ -1,9 +1,11 @@
-import { Routes, Route } from "react-router-dom";
-import Login from "../pages/Auth/Login";
-import Register from "../pages/Auth/Register";
-import DashboardPage from "../pages/Dashboard/DashboardPage";
-import NotFound from "../pages/NotFound";
-import ProtectedRoute from "../components/common/ProtectedRoute";
+// src/routes/AppRoutes.jsx
+import { Routes, Route } from 'react-router-dom';
+import Login from '../pages/Auth/Login';
+import Register from '../pages/Auth/Register';
+import DashboardPage from '../pages/Dashboard/DashboardPage';
+import LogoutPage from '../pages/Auth/LogoutPage';  // Import the LogoutPage
+import NotFound from '../pages/NotFound';
+import ProtectedRoute from '../components/common/ProtectedRoute';
 
 const AppRoutes = () => {
   return (
@@ -18,6 +20,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route path="/logout" element={<LogoutPage />} />  {/* Logout route */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

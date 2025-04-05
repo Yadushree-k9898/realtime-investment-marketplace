@@ -5,10 +5,10 @@ import ProposalOverview from './ProposalOverview';
 import FundingProgress from './FundingProgress';
 import CreateProposalForm from './CreateProposalForm';
 
-const StartupDashboard = () => {
+const FounderDashboard = () => {
   return (
     <div>
-      <DashboardHeader title="Startup Dashboard" />
+      <DashboardHeader title="Founder Dashboard" />
       <CreateProposalForm />
       <ProposalOverview />
       <FundingProgress />
@@ -16,4 +16,4 @@ const StartupDashboard = () => {
   );
 };
 
-export default StartupDashboard;
+export default FounderDashboard;

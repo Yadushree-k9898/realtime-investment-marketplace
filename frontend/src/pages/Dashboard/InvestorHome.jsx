@@ -1,6 +1,6 @@
 // pages/Dashboard/StartupHome.jsx
 import React from 'react';
-import StartupDashboard from '../../components/dashboard/startup/StartupDashboard';
+import StartupDashboard from '../../components/dashboard/startup/FounderDashboard';
 
 const StartupHome = () => <StartupDashboard />;
 
