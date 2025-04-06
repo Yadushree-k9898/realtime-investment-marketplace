@@ -6,7 +6,7 @@ export const createProposal = createAsyncThunk(
   'proposals/create',
   async (formData, thunkAPI) => {
     try {
-      const res = await api.post('/proposals', formData); // Token is added via interceptor
+      const res = await api.post('/proposals', formData);
       return res.data.proposal;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Error creating proposal';
@@ -15,12 +15,24 @@ export const createProposal = createAsyncThunk(
   }
 );
 
-// FETCH PROPOSALS with optional filters (e.g., createdBy)
+// FETCH PROPOSALS
 export const fetchProposals = createAsyncThunk(
   'proposals/fetch',
   async (filters = {}, thunkAPI) => {
     try {
-      const res = await api.get('/proposals', { params: filters }); // e.g. /proposals?createdBy=abc123
+      const state = thunkAPI.getState();
+      const user = state.auth?.user;
+
+      if (!user || !user._id) {
+        return thunkAPI.rejectWithValue('User not logged in');
+      }
+
+      const finalFilters = {
+        createdBy: filters.createdBy || user._id,
+        ...filters,
+      };
+
+      const res = await api.get('/proposals', { params: finalFilters });
       return res.data;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Error fetching proposals';
@@ -29,46 +41,54 @@ export const fetchProposals = createAsyncThunk(
   }
 );
 
-// PROPOSAL SLICE
+// SLICE
 const proposalSlice = createSlice({
   name: 'proposals',
   initialState: {
     proposals: [],
     loading: false,
     error: null,
+    fetched: false,
   },
-  reducers: {},
+  reducers: {
+    clearProposals: (state) => {
+      state.proposals = [];
+      state.fetched = false;
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      // CREATE PROPOSAL
       .addCase(createProposal.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createProposal.fulfilled, (state, action) => {
         state.loading = false;
-        // Add the new proposal to the beginning of the list
+        state.error = null;
         state.proposals = [action.payload, ...state.proposals];
       })
       .addCase(createProposal.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // FETCH PROPOSALS
       .addCase(fetchProposals.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchProposals.fulfilled, (state, action) => {
         state.loading = false;
+        state.error = null;
         state.proposals = action.payload;
+        state.fetched = true;
       })
       .addCase(fetchProposals.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.fetched = false;
       });
   },
 });
 
+export const { clearProposals } = proposalSlice.actions;
 export default proposalSlice.reducer;
