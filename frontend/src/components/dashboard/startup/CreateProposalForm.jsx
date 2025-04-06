@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { createProposal, fetchProposals } from '@/redux/slices/proposalSlice';
+import { createProposal } from '@/redux/slices/proposalSlice';
 import { toast } from 'react-toastify';
 
 const CreateProposalForm = () => {
@@ -40,10 +40,6 @@ const CreateProposalForm = () => {
       await dispatch(createProposal(formData)).unwrap();
       toast.success("Proposal created successfully");
 
-      // Fetch updated proposals after creating a new one
-      dispatch(fetchProposals());
-
-      // Reset form
       setFormData({
         title: '',
         description: '',

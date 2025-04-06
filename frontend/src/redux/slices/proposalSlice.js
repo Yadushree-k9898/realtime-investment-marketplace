@@ -1,3 +1,4 @@
+// src/redux/slices/proposalSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '@/services/api';
 
@@ -6,7 +7,7 @@ export const createProposal = createAsyncThunk(
   'proposals/create',
   async (formData, thunkAPI) => {
     try {
-      const res = await api.post('/proposals', formData); // Token is added via interceptor
+      const res = await api.post('/proposals', formData); // Token added via interceptor
       return res.data.proposal;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Error creating proposal';
@@ -15,12 +16,12 @@ export const createProposal = createAsyncThunk(
   }
 );
 
-// FETCH PROPOSALS with optional filters (e.g., createdBy)
+// FETCH PROPOSALS
 export const fetchProposals = createAsyncThunk(
   'proposals/fetch',
-  async (filters = {}, thunkAPI) => {
+  async (_, thunkAPI) => {
     try {
-      const res = await api.get('/proposals', { params: filters }); // e.g. /proposals?createdBy=abc123
+      const res = await api.get('/proposals'); // Token added via interceptor
       return res.data;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Error fetching proposals';
@@ -29,7 +30,7 @@ export const fetchProposals = createAsyncThunk(
   }
 );
 
-// PROPOSAL SLICE
+// SLICE
 const proposalSlice = createSlice({
   name: 'proposals',
   initialState: {
@@ -40,22 +41,18 @@ const proposalSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // CREATE PROPOSAL
       .addCase(createProposal.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(createProposal.fulfilled, (state, action) => {
         state.loading = false;
-        // Add the new proposal to the beginning of the list
-        state.proposals = [action.payload, ...state.proposals];
+        state.proposals.unshift(action.payload);
       })
       .addCase(createProposal.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
-      // FETCH PROPOSALS
       .addCase(fetchProposals.pending, (state) => {
         state.loading = true;
         state.error = null;
