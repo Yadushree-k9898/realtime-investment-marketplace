@@ -1,14 +1,16 @@
+// src/services/api.js
 import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
-  withCredentials: true,
+  withCredentials: true, // For cookies if needed
 });
 
+// ✅ Interceptor to attach token from localStorage
 api.interceptors.request.use(
   (config) => {
-    const user = localStorage.getItem('user');
-    const token = user ? JSON.parse(user).token : null;
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = user?.token;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -16,7 +18,9 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
 export default api;
