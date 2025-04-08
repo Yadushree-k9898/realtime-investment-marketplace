@@ -1,80 +1,39 @@
-import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { createProposal, fetchProposals } from '@/redux/slices/proposalSlice';
-import { toast } from 'react-toastify';
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { createProposal, clearProposalState } from "../../../redux/slices/proposalSlice";
+import Loader from "../common/Loader";
+
 
 const CreateProposalForm = () => {
+  const [form, setForm] = useState({ title: "", description: "", fundingGoal: "" });
   const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.proposals);
-  const user = useSelector((state) => state.auth.user);
-
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    fundingGoal: '',
-    expectedReturn: '',
-    durationInMonths: '',
-    industry: '',
-  });
+  const { loading, error, successMessage } = useSelector((state) => state.proposals);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    const { title, description, fundingGoal } = formData;
-
-    if (!title || !description || !fundingGoal) {
-      return toast.error("Please fill in all required fields");
-    }
-
-    if (!user?.token) {
-      return toast.error("You must be logged in to create a proposal");
-    }
-
-    try {
-      await dispatch(createProposal(formData)).unwrap();
-      toast.success("Proposal created successfully");
-      dispatch(fetchProposals()); // ✅ Re-fetch proposals after creation
-
-      // Reset form
-      setFormData({
-        title: '',
-        description: '',
-        fundingGoal: '',
-        expectedReturn: '',
-        durationInMonths: '',
-        industry: '',
-      });
-    } catch (error) {
-      toast.error(error || "Something went wrong");
-    }
+    dispatch(createProposal(form));
+    setTimeout(() => dispatch(clearProposalState()), 3000);
   };
-
-  if (!user) {
-    return (
-      <div className="p-4 bg-yellow-100 text-yellow-800 rounded-xl shadow">
-        You must be logged in to create a proposal.
-      </div>
-    );
-  }
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Create New Proposal</h3>
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-lg max-w-md mx-auto">
+      <h2 className="text-xl font-semibold mb-4 text-center">Create Proposal</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <input className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Title *" name="title" value={formData.title} onChange={handleChange} />
-        <textarea className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Description *" name="description" value={formData.description} onChange={handleChange} />
-        <input className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Funding Goal *" type="number" name="fundingGoal" value={formData.fundingGoal} onChange={handleChange} />
-        <input className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Expected Return (%)" type="number" name="expectedReturn" value={formData.expectedReturn} onChange={handleChange} />
-        <input className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Duration (in Months)" type="number" name="durationInMonths" value={formData.durationInMonths} onChange={handleChange} />
-        <input className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white" placeholder="Industry" name="industry" value={formData.industry} onChange={handleChange} />
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50" disabled={loading}>
-          {loading ? "Submitting..." : "Submit Proposal"}
+        <input name="title" placeholder="Title" onChange={handleChange} value={form.title} className="input" required />
+        <textarea name="description" placeholder="Description" onChange={handleChange} value={form.description} className="textarea" required />
+        <input type="number" name="fundingGoal" placeholder="Funding Goal" onChange={handleChange} value={form.fundingGoal} className="input" required />
+
+        <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+          {loading ? <Loader size="sm" /> : "Submit Proposal"}
         </button>
       </form>
+
+      {successMessage && <p className="text-green-600 mt-2 text-center">{successMessage}</p>}
+      {error && <p className="text-red-600 mt-2 text-center">{error}</p>}
     </div>
   );
 };

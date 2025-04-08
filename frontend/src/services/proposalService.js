@@ -1,7 +1,18 @@
-// src/services/proposalService.js
-import axios from '@/lib/axios'; // your axios instance with baseURL and interceptors if any
+import api from "./api";
 
-export const createProposalService = async (proposalData) => {
-  const res = await axios.post('/api/proposals', proposalData);
+const createProposal = async (data) => {
+  const res = await api.post("/proposals", data);
   return res.data;
 };
+
+const getProposals = async () => {
+  const res = await api.get("/proposals");
+  return res.data;
+};
+
+const proposalService = {
+  createProposal,
+  getProposals,
+};
+
+export default proposalService;

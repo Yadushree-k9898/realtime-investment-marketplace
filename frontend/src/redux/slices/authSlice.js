@@ -1,13 +1,10 @@
+// src/redux/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import API from '../../services/api';
+import API from '@/services/api';
 
 const userFromStorage = localStorage.getItem('user')
   ? JSON.parse(localStorage.getItem('user'))
   : null;
-
-if (userFromStorage?.token) {
-  API.defaults.headers.common['Authorization'] = `Bearer ${userFromStorage.token}`;
-}
 
 const initialState = {
   user: userFromStorage,
@@ -16,29 +13,33 @@ const initialState = {
   error: null,
 };
 
-export const registerUser = createAsyncThunk('auth/registerUser', async (formData, { rejectWithValue }) => {
-  try {
-    const res = await API.post('/auth/register', formData);
-    const fullUser = { ...res.data.user, token: res.data.token };
-    localStorage.setItem('user', JSON.stringify(fullUser));
-    API.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-    return fullUser;
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Registration failed');
+export const registerUser = createAsyncThunk(
+  'auth/registerUser',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const res = await API.post('/auth/register', formData);
+      const fullUser = { ...res.data.user, token: res.data.token };
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      return fullUser;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+    }
   }
-});
+);
 
-export const loginUser = createAsyncThunk('auth/loginUser', async (formData, { rejectWithValue }) => {
-  try {
-    const res = await API.post('/auth/login', formData);
-    const fullUser = { ...res.data.user, token: res.data.token };
-    localStorage.setItem('user', JSON.stringify(fullUser));
-    API.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-    return fullUser;
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Login failed');
+export const loginUser = createAsyncThunk(
+  'auth/loginUser',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const res = await API.post('/auth/login', formData);
+      const fullUser = { ...res.data.user, token: res.data.token };
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      return fullUser;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Login failed');
+    }
   }
-});
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -46,7 +47,6 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       localStorage.removeItem('user');
-      delete API.defaults.headers.common['Authorization'];
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;

@@ -3,10 +3,9 @@ import React from 'react';
 
 const UserTable = () => {
   const users = [
-    { name: 'Alice', role: 'Startup' },
+    { name: 'Alice', role: 'Founder' },
     { name: 'Bob', role: 'Investor' },
   ];
-
   return (
     <table className="w-full text-left border">
       <thead>

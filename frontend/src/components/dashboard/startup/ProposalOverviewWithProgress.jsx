@@ -8,7 +8,6 @@ const ProposalOverviewWithProgress = () => {
   const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
-    // Only fetch proposals if user exists and proposals haven't been fetched yet
     if (user && user._id && !fetched) {
       dispatch(fetchProposals());
     }

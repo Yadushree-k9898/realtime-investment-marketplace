@@ -1,8 +1,9 @@
-// components/dashboard/startup/StartupDashboard.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import DashboardHeader from '../common/DashboardHeader';
 import CreateProposalForm from './CreateProposalForm';
 import ProposalOverviewWithProgress from './ProposalOverviewWithProgress';
+import { fetchProposals } from '@/redux/slices/proposalSlice';
 
 const tabs = [
   { name: 'Create Proposal', key: 'create' },
@@ -11,11 +12,21 @@ const tabs = [
 
 const FounderDashboard = () => {
   const [activeTab, setActiveTab] = useState('create');
+  const dispatch = useDispatch();
+  const { fetched } = useSelector((state) => state.proposals);
+  const { user } = useSelector((state) => state.auth);
+
+  // Fetch proposals only when "My Proposals" tab is opened and not yet fetched
+  useEffect(() => {
+    if (activeTab === 'proposals' && user && !fetched) {
+      dispatch(fetchProposals());
+    }
+  }, [activeTab, dispatch, user, fetched]);
 
   return (
     <div className="p-4">
       <DashboardHeader title="Founder Dashboard" />
-      
+
       <div className="flex gap-4 mt-4 border-b">
         {tabs.map((tab) => (
           <button
