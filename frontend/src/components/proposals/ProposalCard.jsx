@@ -9,15 +9,30 @@ const ProposalCard = ({ proposal }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // LOGGING
-  console.log("User ID:", user?._id);
-  console.log("Proposal Founder:", proposal?.founder);
+  // Enhanced debug logging
+  console.log("Proposal:", {
+    id: proposal._id,
+    title: proposal.title,
+    founder: proposal.founder
+  });
+  
+  console.log("Auth User:", {
+    id: user?.id,
+    _id: user?._id,
+    role: user?.role
+  });
 
-  const founderId = typeof proposal?.founder === "string"
-    ? proposal.founder
-    : proposal?.founder?._id;
+  // Fix founder comparison
+  const founderId = proposal?.founder?._id || proposal?.founder;
+  const userId = user?._id || user?.id;
+  const isFounder = Boolean(userId && founderId && userId === founderId);
 
-  const isFounder = user?._id && founderId === user._id;
+  console.log("Visibility Check:", {
+    founderId,
+    userId,
+    isFounder,
+    userRole: user?.role
+  });
 
   const handleEdit = () => {
     dispatch(setCurrentProposal(proposal));
@@ -45,7 +60,7 @@ const ProposalCard = ({ proposal }) => {
       <p className="text-sm">Raised: ₹{totalRaised}</p>
       <p className="text-sm text-gray-500">Status: {proposal.status || "Active"}</p>
 
-      {isFounder ? (
+      {(isFounder || user?.role === 'admin') && (
         <div className="flex gap-2 mt-4">
           <Button onClick={handleEdit} className="bg-blue-600 hover:bg-blue-700 text-white">
             Edit
@@ -54,8 +69,6 @@ const ProposalCard = ({ proposal }) => {
             Delete
           </Button>
         </div>
-      ) : (
-        <p className="text-xs text-gray-400 mt-2 italic">You are not the founder</p>
       )}
     </div>
   );
