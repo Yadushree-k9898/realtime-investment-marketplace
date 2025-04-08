@@ -36,7 +36,7 @@ const ProposalCard = ({ proposal }) => {
 
   const handleEdit = () => {
     dispatch(setCurrentProposal(proposal));
-    navigate("/proposals/edit");
+    navigate(`/dashboard/proposals/edit/${proposal._id}`); // Updated path
   };
 
   const handleDelete = () => {

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import proposalService from "../../services/proposalService";
 
-
+// Thunks
 export const createProposal = createAsyncThunk(
   "proposals/create",
   async (proposalData, thunkAPI) => {
@@ -28,7 +28,7 @@ export const updateProposal = createAsyncThunk(
   "proposals/update",
   async ({ id, data }, thunkAPI) => {
     try {
-      return await proposalService.updateProposal(id, data);
+      return await proposalService.updateProposal(id, data); // returns updated proposal directly
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data?.message || "Update failed");
     }
@@ -102,8 +102,8 @@ const proposalSlice = createSlice({
       })
       .addCase(updateProposal.fulfilled, (state, action) => {
         state.loading = false;
-        state.successMessage = action.payload.message;
-        const updated = action.payload.proposal;
+        state.successMessage = "Proposal updated successfully";
+        const updated = action.payload;
         state.proposals = state.proposals.map((p) =>
           p._id === updated._id ? updated : p
         );
