@@ -1,7 +1,8 @@
-// pages/Dashboard/StartupHome.jsx
 import React from 'react';
-import StartupDashboard from '../../components/dashboard/startup/FounderDashboard';
+import InvestorDashboard from '@/components/dashboard/investor/InvestorDashboard';
 
-const StartupHome = () => <StartupDashboard />;
+const InvestorHome = () => {
+  return <InvestorDashboard />;
+};
 
-export default StartupHome;
+export default InvestorHome;

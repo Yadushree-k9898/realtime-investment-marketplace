@@ -2,7 +2,7 @@
 import React from 'react';
 import DashboardHeader from '../common/DashboardHeader';
 import InvestmentStats from './InvestmentStats';
-import ProposalReviewList from './ProposalReviewList';
+// import ProposalReviewList from './ProposalReviewList';
 import InvestmentChart from './InvestmentChart';
 
 const InvestorDashboard = () => {
@@ -11,7 +11,7 @@ const InvestorDashboard = () => {
       <DashboardHeader title="Investor Dashboard" />
       <InvestmentStats />
       <InvestmentChart />
-      <ProposalReviewList />
+      {/* <ProposalReviewList /> */}
     </div>
   );
 };

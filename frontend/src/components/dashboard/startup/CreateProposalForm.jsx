@@ -3,14 +3,17 @@ import { useDispatch } from "react-redux";
 import { createProposal, updateProposal } from "@/redux/slices/proposalSlice";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
-const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose }) => {
+const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    fundingGoal: "",
+    expectedAmount: "",
+    status: "Under Review",
   });
 
   useEffect(() => {
@@ -18,7 +21,8 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose })
       setFormData({
         title: initialData.title || "",
         description: initialData.description || "",
-        fundingGoal: initialData.fundingGoal || "",
+        expectedAmount: initialData.expectedAmount || "",
+        status: initialData.status || "Under Review",
       });
     }
   }, [initialData, isEditMode]);
@@ -30,7 +34,8 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.description || !formData.fundingGoal) {
+    const { title, description, expectedAmount } = formData;
+    if (!title || !description || !expectedAmount) {
       return toast.error("Please fill all fields");
     }
 
@@ -43,7 +48,7 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose })
         toast.success("Proposal created");
       }
 
-      onClose?.(); // Close modal if available
+      navigate("/dashboard"); // go back after success
     } catch (error) {
       toast.error(error.message || "Something went wrong");
     }
@@ -73,14 +78,28 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose })
       </div>
 
       <div>
-        <label className="block mb-1 font-medium">Funding Goal ($)</label>
+        <label className="block mb-1 font-medium">Expected Amount (₹)</label>
         <input
           type="number"
-          name="fundingGoal"
+          name="expectedAmount"
           className="w-full border rounded p-2 dark:bg-neutral-800"
-          value={formData.fundingGoal}
+          value={formData.expectedAmount}
           onChange={handleChange}
         />
+      </div>
+
+      <div>
+        <label className="block mb-1 font-medium">Status</label>
+        <select
+          name="status"
+          className="w-full border rounded p-2 dark:bg-neutral-800"
+          value={formData.status}
+          onChange={handleChange}
+        >
+          <option value="Under Review">Under Review</option>
+          <option value="Negotiating">Negotiating</option>
+          <option value="Funded">Funded</option>
+        </select>
       </div>
 
       <Button type="submit" className="w-full">
