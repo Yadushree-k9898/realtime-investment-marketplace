@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { createProposal, updateProposal, deleteProposal } from "@/redux/slices/proposalSlice";
-import { useNavigate } from "react-router-dom";
+import { createProposal, updateProposal } from "@/redux/slices/proposalSlice";
 import { toast } from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 
-const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
+const CreateProposalForm = ({ initialData = null, isEditMode = false, onClose }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -18,9 +16,9 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
   useEffect(() => {
     if (initialData && isEditMode) {
       setFormData({
-        title: initialData.title,
-        description: initialData.description,
-        fundingGoal: initialData.fundingGoal,
+        title: initialData.title || "",
+        description: initialData.description || "",
+        fundingGoal: initialData.fundingGoal || "",
       });
     }
   }, [initialData, isEditMode]);
@@ -45,27 +43,14 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
         toast.success("Proposal created");
       }
 
-      navigate("/dashboard/proposals");
+      onClose?.(); // Close modal if available
     } catch (error) {
       toast.error(error.message || "Something went wrong");
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this proposal?")) return;
-    try {
-      await dispatch(deleteProposal(initialData._id)).unwrap();
-      toast.success("Proposal deleted");
-      navigate("/dashboard/proposals");
-    } catch (error) {
-      toast.error("Failed to delete proposal", error);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-4 max-w-2xl mx-auto bg-white dark:bg-neutral-900 rounded-xl shadow">
-      <h2 className="text-xl font-bold mb-4">{isEditMode ? "Edit Proposal" : "Create Proposal"}</h2>
-
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block mb-1 font-medium">Title</label>
         <input
@@ -98,17 +83,9 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
         />
       </div>
 
-      <div className="flex justify-between items-center mt-6">
-        <Button type="submit" className="px-6">
-          {isEditMode ? "Update Proposal" : "Create Proposal"}
-        </Button>
-
-        {isEditMode && (
-          <Button type="button" variant="destructive" onClick={handleDelete}>
-            Delete Proposal
-          </Button>
-        )}
-      </div>
+      <Button type="submit" className="w-full">
+        {isEditMode ? "Update Proposal" : "Create Proposal"}
+      </Button>
     </form>
   );
 };
