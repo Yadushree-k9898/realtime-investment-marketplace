@@ -24,11 +24,20 @@ const deleteProposal = async (id) => {
   return res.data;
 };
 
+// Get a single proposal by ID
+const getProposalById = async (id) => {
+  const res = await api.get(`/proposals/${id}`);
+  return res.data;
+};
+
 const proposalService = {
   createProposal,
   getProposals,
   updateProposal,
   deleteProposal,
+  getProposalById, // ✅ Add this
 };
 
 export default proposalService;
+
+

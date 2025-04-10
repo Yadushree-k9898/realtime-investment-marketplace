@@ -1,16 +1,12 @@
 import axios from 'axios';
 
-// ✅ Base API URL from environment variable (with fallback)
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
 
-
-// ✅ Utility to extract token from localStorage
 const authHeader = () => {
   const user = JSON.parse(localStorage.getItem('user'));
   return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
 };
 
-// ✅ Consistent error handler
 const handleError = (error) => {
   if (error.response) {
     return error.response.data.message || 'Something went wrong';
@@ -19,7 +15,6 @@ const handleError = (error) => {
   }
 };
 
-// ✅ Fetch investor stats
 const fetchInvestorStats = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/investments/stats`, {
@@ -32,7 +27,6 @@ const fetchInvestorStats = async () => {
   }
 };
 
-// ✅ Fetch funding trends
 const fetchFundingTrends = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/investments/trends`, {
@@ -45,7 +39,6 @@ const fetchFundingTrends = async () => {
   }
 };
 
-// ✅ Fetch total investment analysis
 const fetchTotalAnalysis = async () => {
   try {
     const response = await axios.get(`${API_BASE_URL}/investments/total`, {
@@ -58,7 +51,6 @@ const fetchTotalAnalysis = async () => {
   }
 };
 
-// ✅ Invest in a proposal
 const investInProposal = async (proposalId, investmentData) => {
   try {
     const response = await axios.post(
@@ -75,7 +67,6 @@ const investInProposal = async (proposalId, investmentData) => {
   }
 };
 
-// ✅ Set default returns
 const setDefaultReturns = async () => {
   try {
     const response = await axios.put(
@@ -92,7 +83,6 @@ const setDefaultReturns = async () => {
   }
 };
 
-// ✅ Search investments with filters
 const searchInvestments = async (filters) => {
   try {
     const query = new URLSearchParams(filters).toString();

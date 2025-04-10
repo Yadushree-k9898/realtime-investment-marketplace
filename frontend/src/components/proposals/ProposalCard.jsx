@@ -13,10 +13,7 @@ const ProposalCard = ({ proposal }) => {
   const userId = user?._id || user?.id;
   const isFounder = userId && founderId && userId === founderId;
 
-  const totalRaised = proposal?.investments?.reduce(
-    (sum, inv) => sum + inv.amount,
-    0
-  ) || 0;
+  
 
   const handleEdit = () => {
     dispatch(setCurrentProposal(proposal));
@@ -34,12 +31,43 @@ const ProposalCard = ({ proposal }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4">
-      <h3 className="text-lg font-bold mb-2">{proposal.title}</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{proposal.description}</p>
-      <p className="text-sm font-medium">Funding Goal: ₹{proposal.expectedAmount}</p>
-      <p className="text-sm">Raised: ₹{totalRaised}</p>
-      <p className="text-sm text-gray-500">Status: {proposal.status || "Active"}</p>
+    <div className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 space-y-2">
+      <h3 className="text-lg font-bold">{proposal.title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300">{proposal.description}</p>
+
+      <div className="text-sm space-y-1">
+        <p><strong>Funding Goal:</strong> ₹{proposal.fundingGoal}</p>
+        <p>Current Funding: ₹{proposal.currentFunding || 0}</p>
+
+        <p><strong>Status:</strong> {proposal.status || "Active"}</p>
+
+        {proposal.returns && <p><strong>Returns:</strong> {proposal.returns}</p>}
+        {proposal.industry && <p><strong>Industry:</strong> {proposal.industry}</p>}
+        {proposal.equityOffered && <p><strong>Equity Offered:</strong> {proposal.equityOffered}%</p>}
+        {proposal.valuation && <p><strong>Valuation:</strong> ₹{proposal.valuation} Cr</p>}
+        {proposal.milestones?.length > 0 && (
+          <p><strong>Milestones:</strong> {proposal.milestones.length}</p>
+        )}
+        {proposal.tags?.length > 0 && (
+          <p><strong>Tags:</strong> {proposal.tags.join(", ")}</p>
+        )}
+        {proposal.location && <p><strong>Location:</strong> {proposal.location}</p>}
+        {proposal.isPublic !== undefined && (
+          <p><strong>Visibility:</strong> {proposal.isPublic ? "Public" : "Private"}</p>
+        )}
+        {proposal.pitchDeckUrl && (
+          <p>
+            <a
+              href={proposal.pitchDeckUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 underline"
+            >
+              View Pitch Deck
+            </a>
+          </p>
+        )}
+      </div>
 
       <div className="flex gap-2 mt-4 flex-wrap">
         {isFounder || user?.role === "admin" ? (
@@ -69,9 +97,6 @@ const ProposalCard = ({ proposal }) => {
     </div>
   );
 };
-export {
-  setCurrentProposal,
-};
 
-
+export { setCurrentProposal };
 export default ProposalCard;

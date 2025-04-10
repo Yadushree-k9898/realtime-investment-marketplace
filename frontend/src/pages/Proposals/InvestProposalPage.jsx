@@ -7,13 +7,15 @@ import InvestForm from '@/components/proposals/InvestForm';
 const InvestProposalPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const { currentProposal, loading } = useSelector((state) => state.proposals);
+  const { currentProposal, loading, error } = useSelector((state) => state.proposals);
 
   useEffect(() => {
     dispatch(fetchProposalById(id));
   }, [dispatch, id]);
 
-  if (loading || !currentProposal) return <p>Loading...</p>;
+  if (loading) return <p>Loading proposal...</p>;
+  if (error) return <p className="text-red-500">Error: {error}</p>;
+  if (!currentProposal) return <p>No proposal found.</p>;
 
   return (
     <div className="p-6">
