@@ -1,29 +1,37 @@
-// src/routes/AppRoutes.jsx
-import { Routes, Route } from 'react-router-dom';
-import Login from '@/pages/Auth/Login';
-import Register from '@/pages/Auth/Register';
-import LogoutPage from '@/pages/Auth/LogoutPage';
-import DashboardPage from '@/pages/Dashboard/DashboardPage';
-import EditProposal from '@/pages/Proposals/EditProposal';
-import CreateProposalPage from '@/pages/Proposals/CreateProposalPage'; // ✅ NEW
-import NotFound from '@/pages/NotFound';
-import ProtectedRoute from '@/components/common/ProtectedRoute';
-
+import { Routes, Route } from "react-router-dom";
+import Login from "@/pages/Auth/Login";
+import Register from "@/pages/Auth/Register";
+import LogoutPage from "@/pages/Auth/LogoutPage";
+import DashboardPage from "@/pages/Dashboard/DashboardPage";
+import CreateProposalPage from "@/pages/Proposals/CreateProposalPage";
+import EditProposal from "@/pages/Proposals/EditProposal";
+import AllProposals from "@/pages/Proposals/AllProposals"; // ✅ this should contain ProposalList
+import NotFound from "@/pages/NotFound";
+import ProtectedRoute from "@/components/common/ProtectedRoute";
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* 🔓 Public Routes */}
+      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/logout" element={<LogoutPage />} />
 
-      {/* 🔐 Protected Routes */}
+      {/* Protected Routes */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/dashboard/proposals"
+        element={
+          <ProtectedRoute>
+            <AllProposals />
           </ProtectedRoute>
         }
       />
@@ -46,7 +54,7 @@ const AppRoutes = () => {
         }
       />
 
-      {/* 🔍 Fallback Route */}
+      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

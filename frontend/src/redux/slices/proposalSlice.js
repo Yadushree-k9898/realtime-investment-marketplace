@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import proposalService from "../../services/proposalService";
+import proposalService from "@/services/proposalService";
 
 // Thunks
 export const createProposal = createAsyncThunk(
@@ -28,7 +28,7 @@ export const updateProposal = createAsyncThunk(
   "proposals/update",
   async ({ id, data }, thunkAPI) => {
     try {
-      return await proposalService.updateProposal(id, data); // returns updated proposal directly
+      return await proposalService.updateProposal(id, data);
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data?.message || "Update failed");
     }
@@ -72,6 +72,7 @@ const proposalSlice = createSlice({
       // Create
       .addCase(createProposal.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(createProposal.fulfilled, (state, action) => {
         state.loading = false;
@@ -83,9 +84,10 @@ const proposalSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Fetch All
+      // Fetch
       .addCase(fetchProposals.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchProposals.fulfilled, (state, action) => {
         state.loading = false;
@@ -99,6 +101,7 @@ const proposalSlice = createSlice({
       // Update
       .addCase(updateProposal.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(updateProposal.fulfilled, (state, action) => {
         state.loading = false;
@@ -116,6 +119,7 @@ const proposalSlice = createSlice({
       // Delete
       .addCase(deleteProposal.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(deleteProposal.fulfilled, (state, action) => {
         state.loading = false;

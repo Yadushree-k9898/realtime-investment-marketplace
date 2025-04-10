@@ -14,7 +14,7 @@ connectDB();
 const app = express();
 
 // ✅ Run Cron Jobs
-cronJob;
+cronJob();
 
 // ✅ Middleware
 app.use(express.json());

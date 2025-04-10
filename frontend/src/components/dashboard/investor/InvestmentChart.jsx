@@ -1,25 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { fetchFundingTrends } from '@/services/dashboardService';
-
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from 'recharts';
+import { useEffect, useState } from 'react';
+import investmentService from '@/services/investmentService';
 
 const InvestmentChart = () => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const getChartData = async () => {
       try {
-        const data = await fetchFundingTrends();
-        setChartData(data);
+        const rawData = await investmentService.fetchFundingTrends();
+        console.log('Fetched chart data:', rawData);
+
+        // Transform backend format to recharts format
+        if (
+          rawData?.labels &&
+          Array.isArray(rawData.datasets) &&
+          rawData.datasets.length > 0 &&
+          Array.isArray(rawData.datasets[0].data)
+        ) {
+          const transformed = rawData.labels.map((label, index) => ({
+            month: label,
+            amount: rawData.datasets[0].data[index], // total invested amount
+          }));
+          setChartData(transformed);
+        } else {
+          console.error('Invalid data format:', rawData);
+          setError('Invalid data format.');
+        }
       } catch (err) {
-        console.error("Failed to fetch chart data", err);
+        console.error('Failed to fetch chart data', err);
+        setError('Failed to fetch chart data.');
       } finally {
         setLoading(false);
       }
     };
+
     getChartData();
   }, []);
 
@@ -27,6 +52,14 @@ const InvestmentChart = () => {
     return (
       <div className="p-4 bg-white rounded-xl shadow mt-4">
         <p className="text-sm text-gray-500">Loading chart...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-white rounded-xl shadow mt-4">
+        <p className="text-sm text-red-500">{error}</p>
       </div>
     );
   }

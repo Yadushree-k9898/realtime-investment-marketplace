@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { fetchAllProposals } from "@/services/proposalService";
+import proposalService from "@/services/proposalService"; // ✅ Default import
 import ProposalCard from "@/components/proposals/ProposalCard";
-import Loader from "@/components/common/Loader";
 import { Input } from "@/components/ui/input";
 
 const AllProposals = () => {
@@ -14,7 +13,7 @@ const AllProposals = () => {
   useEffect(() => {
     const loadProposals = async () => {
       try {
-        const data = await fetchAllProposals();
+        const data = await proposalService.getProposals(); // ✅ Correct method
         setProposals(data);
         setFiltered(data);
       } catch (err) {
@@ -34,7 +33,7 @@ const AllProposals = () => {
     setFiltered(filteredList);
   }, [searchTerm, proposals]);
 
-  if (loading) return <Loader />;
+  if (loading) return <p className="text-center mt-4">Loading proposals...</p>;
   if (error) return <p className="text-red-500 text-center">{error}</p>;
   if (!filtered.length) return <p className="text-center mt-4">No proposals found.</p>;
 
