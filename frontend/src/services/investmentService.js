@@ -1,7 +1,16 @@
 import axios from 'axios';
 
-const API_URL = '/api/investments';
+// ✅ Base API URL from environment variable (with fallback)
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
 
+
+// ✅ Utility to extract token from localStorage
+const authHeader = () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
+};
+
+// ✅ Consistent error handler
 const handleError = (error) => {
   if (error.response) {
     return error.response.data.message || 'Something went wrong';
@@ -10,17 +19,12 @@ const handleError = (error) => {
   }
 };
 
-// ✅ Updated to match how token is stored in localStorage
-const authHeader = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
-};
-
-// ✅ All API calls use the updated authHeader
+// ✅ Fetch investor stats
 const fetchInvestorStats = async () => {
   try {
-    const response = await axios.get(`${API_URL}/stats`, {
+    const response = await axios.get(`${API_BASE_URL}/investments/stats`, {
       headers: authHeader(),
+      withCredentials: true,
     });
     return response.data;
   } catch (error) {
@@ -28,10 +32,12 @@ const fetchInvestorStats = async () => {
   }
 };
 
+// ✅ Fetch funding trends
 const fetchFundingTrends = async () => {
   try {
-    const response = await axios.get(`${API_URL}/trends`, {
+    const response = await axios.get(`${API_BASE_URL}/investments/trends`, {
       headers: authHeader(),
+      withCredentials: true,
     });
     return response.data;
   } catch (error) {
@@ -39,10 +45,12 @@ const fetchFundingTrends = async () => {
   }
 };
 
+// ✅ Fetch total investment analysis
 const fetchTotalAnalysis = async () => {
   try {
-    const response = await axios.get(`${API_URL}/total`, {
+    const response = await axios.get(`${API_BASE_URL}/investments/total`, {
       headers: authHeader(),
+      withCredentials: true,
     });
     return response.data;
   } catch (error) {
@@ -50,12 +58,16 @@ const fetchTotalAnalysis = async () => {
   }
 };
 
+// ✅ Invest in a proposal
 const investInProposal = async (proposalId, investmentData) => {
   try {
     const response = await axios.post(
-      `${API_URL}/${proposalId}`,
+      `${API_BASE_URL}/investments/${proposalId}`,
       investmentData,
-      { headers: authHeader() }
+      {
+        headers: authHeader(),
+        withCredentials: true,
+      }
     );
     return response.data;
   } catch (error) {
@@ -63,22 +75,30 @@ const investInProposal = async (proposalId, investmentData) => {
   }
 };
 
+// ✅ Set default returns
 const setDefaultReturns = async () => {
   try {
-    const response = await axios.put(`${API_URL}/set-default-returns`, null, {
-      headers: authHeader(),
-    });
+    const response = await axios.put(
+      `${API_BASE_URL}/investments/set-default-returns`,
+      null,
+      {
+        headers: authHeader(),
+        withCredentials: true,
+      }
+    );
     return response.data;
   } catch (error) {
     throw new Error(handleError(error));
   }
 };
 
+// ✅ Search investments with filters
 const searchInvestments = async (filters) => {
   try {
     const query = new URLSearchParams(filters).toString();
-    const response = await axios.get(`${API_URL}/search?${query}`, {
+    const response = await axios.get(`${API_BASE_URL}/investments/search?${query}`, {
       headers: authHeader(),
+      withCredentials: true,
     });
     return response.data;
   } catch (error) {

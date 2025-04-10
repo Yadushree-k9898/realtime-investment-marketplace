@@ -1,34 +1,75 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { investInProposal } from '@/redux/slices/investmentSlice';
+import React, { useState } from "react";
+import investmentService from "@/services/investmentService"; // ✅ use default import
+import { useSelector } from "react-redux";
+import { toast } from "react-hot-toast";
 
-const InvestForm = ({ proposalId }) => {
-  const dispatch = useDispatch();
-  const [amount, setAmount] = useState('');
+const InvestForm = ({ proposalId, onSuccess }) => {
+  const [amount, setAmount] = useState("");
+  const [message, setMessage] = useState("");
 
-  const handleSubmit = (e) => {
+  const { user } = useSelector((state) => state.auth);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount) return;
-    dispatch(investInProposal({ proposalId, amount: Number(amount) }));
-    setAmount('');
+    try {
+      if (!user) {
+        toast.error("You must be logged in to invest.");
+        return;
+      }
+
+      const investmentData = {
+        amount: parseFloat(amount),
+        message,
+      };
+
+      await investmentService.investInProposal(proposalId, investmentData); // ✅ correct call
+      toast.success("Investment successful!");
+      setAmount("");
+      setMessage("");
+      if (onSuccess) onSuccess(); // callback to refresh parent data
+    } catch (error) {
+      console.error("Investment failed:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to invest. Try again later."
+      );
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
-      <label className="block">
-        <span className="text-gray-700 dark:text-gray-200">Investment Amount (₹)</span>
+    <form onSubmit={handleSubmit} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-900">
+      <h3 className="text-lg font-semibold mb-2">Invest in this Proposal</h3>
+
+      <div className="mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Amount (USD)
+        </label>
         <input
           type="number"
+          min="1"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-white"
+          required
         />
-      </label>
+      </div>
+
+      <div className="mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Message (optional)
+        </label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md dark:bg-gray-800 dark:text-white"
+          rows={3}
+        />
+      </div>
+
       <button
         type="submit"
-        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700"
       >
-        Confirm Investment
+        Invest
       </button>
     </form>
   );

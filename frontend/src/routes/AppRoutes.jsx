@@ -8,6 +8,7 @@ import EditProposal from "@/pages/Proposals/EditProposal";
 import AllProposals from "@/pages/Proposals/AllProposals"; // ✅ this should contain ProposalList
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
+import InvestProposalPage from "@/pages/Proposals/InvestProposalPage"; 
 
 const AppRoutes = () => {
   return (
@@ -50,6 +51,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <EditProposal />
+          </ProtectedRoute>
+        }
+      />
+        <Route
+        path="/dashboard/proposals/invest/:id"
+        element={
+          <ProtectedRoute>
+            <InvestProposalPage />
           </ProtectedRoute>
         }
       />

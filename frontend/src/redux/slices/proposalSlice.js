@@ -24,6 +24,18 @@ export const fetchProposals = createAsyncThunk(
   }
 );
 
+// ✅ ADD THIS NEW THUNK
+ const fetchProposalById = createAsyncThunk(
+  "proposals/fetchById",
+  async (id, thunkAPI) => {
+    try {
+      return await proposalService.getProposalById(id);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data?.message || "Fetch failed");
+    }
+  }
+);
+
 export const updateProposal = createAsyncThunk(
   "proposals/update",
   async ({ id, data }, thunkAPI) => {
@@ -47,7 +59,6 @@ export const deleteProposal = createAsyncThunk(
   }
 );
 
-// Slice
 const proposalSlice = createSlice({
   name: "proposals",
   initialState: {
@@ -69,7 +80,6 @@ const proposalSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Create
       .addCase(createProposal.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -84,7 +94,6 @@ const proposalSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Fetch
       .addCase(fetchProposals.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -98,7 +107,21 @@ const proposalSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Update
+      // ✅ ADD CASE HANDLERS FOR fetchProposalById
+      .addCase(fetchProposalById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.currentProposal = null;
+      })
+      .addCase(fetchProposalById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentProposal = action.payload;
+      })
+      .addCase(fetchProposalById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       .addCase(updateProposal.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -116,7 +139,6 @@ const proposalSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Delete
       .addCase(deleteProposal.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -134,6 +156,8 @@ const proposalSlice = createSlice({
       });
   },
 });
-
 export const { clearProposalState, setCurrentProposal } = proposalSlice.actions;
+export { fetchProposalById };
+
 export default proposalSlice.reducer;
+

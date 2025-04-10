@@ -83,33 +83,45 @@ exports.investInProposal = async (req, res) => {
     }
 };
 
-// Get investor stats (including ROI)
 exports.investorStats = async (req, res) => {
     try {
-        const investorId = req.user.id;
-        const GROWTH_RATE = 1.2; // 20% growth
+        const investorId = req.user?.id;
 
-        // Get all investments directly with proposal details
+        if (!investorId) {
+            return res.status(401).json({ message: "Unauthorized: No user ID found" });
+        }
+
+        console.log("🔍 Fetching stats for investor:", investorId);
+
+        const GROWTH_RATE = 1.2; // Simulated 20% return
         const investments = await Investment.find({ investor: investorId })
-            .populate('proposal', 'fundingGoal')
+            .populate("proposal", "fundingGoal")
             .lean();
 
-        if (!investments.length) {
-            return res.status(404).json({ message: "No investments found" });
+        if (!investments || investments.length === 0) {
+            console.warn("⚠️ No investments found for user:", investorId);
+            return res.status(200).json({
+                totalInvested: 0,
+                totalReturns: 0,
+                statsByProposal: {},
+                totalROI: 0,
+            });
         }
 
         let totalInvested = 0;
         let totalReturns = 0;
         const statsByProposal = {};
 
-        // Group investments by proposal
+        // Group and calculate per proposal
         const groupedInvestments = investments.reduce((acc, inv) => {
-            const proposalId = inv.proposal._id.toString();
+            const proposalId = inv.proposal?._id?.toString();
+            if (!proposalId) return acc;
+
             if (!acc[proposalId]) {
                 acc[proposalId] = {
                     invested: 0,
                     returns: 0,
-                    fundingGoal: inv.proposal.fundingGoal
+                    fundingGoal: inv.proposal.fundingGoal || 1,
                 };
             }
             acc[proposalId].invested += inv.amount;
@@ -117,40 +129,111 @@ exports.investorStats = async (req, res) => {
             return acc;
         }, {});
 
-        // Calculate statistics for each proposal
         Object.entries(groupedInvestments).forEach(([proposalId, data]) => {
-            const invested = data.invested;
-            const returns = data.returns;
-            
+            const { invested, returns, fundingGoal } = data;
             totalInvested += invested;
             totalReturns += returns;
 
             statsByProposal[proposalId] = {
-                invested: invested,
-                returns: returns,
+                invested: Math.round(invested),
+                returns: Math.round(returns),
                 equityOwnership: Math.min(
-                    Number(((invested / data.fundingGoal) * 100).toFixed(2)),
+                    Number(((invested / fundingGoal) * 100).toFixed(2)),
                     100
                 ),
-                roi: 20 // Fixed 20% ROI
+                roi: 20,
             };
         });
+
+        const totalROI = totalInvested > 0
+            ? Number((((totalReturns - totalInvested) / totalInvested) * 100).toFixed(2))
+            : 0;
 
         res.status(200).json({
             totalInvested: Math.round(totalInvested),
             totalReturns: Math.round(totalReturns),
             statsByProposal,
-            totalROI: 20
+            totalROI,
         });
 
     } catch (error) {
         console.error("❌ Error fetching investor stats:", error);
-        res.status(500).json({ 
-            message: "Error fetching investor stats", 
-            error: error.message 
+        res.status(500).json({
+            message: "Error fetching investor stats",
+            error: error.message,
         });
     }
 };
+
+
+// Get investor stats (including ROI)
+// exports.investorStats = async (req, res) => {
+//     try {
+//         const investorId = req.user.id;
+//         const GROWTH_RATE = 1.2; // 20% growth
+
+//         // Get all investments directly with proposal details
+//         const investments = await Investment.find({ investor: investorId })
+//             .populate('proposal', 'fundingGoal')
+//             .lean();
+
+//         if (!investments.length) {
+//             return res.status(404).json({ message: "No investments found" });
+//         }
+
+//         let totalInvested = 0;
+//         let totalReturns = 0;
+//         const statsByProposal = {};
+
+//         // Group investments by proposal
+//         const groupedInvestments = investments.reduce((acc, inv) => {
+//             const proposalId = inv.proposal._id.toString();
+//             if (!acc[proposalId]) {
+//                 acc[proposalId] = {
+//                     invested: 0,
+//                     returns: 0,
+//                     fundingGoal: inv.proposal.fundingGoal
+//                 };
+//             }
+//             acc[proposalId].invested += inv.amount;
+//             acc[proposalId].returns += inv.amount * GROWTH_RATE;
+//             return acc;
+//         }, {});
+
+//         // Calculate statistics for each proposal
+//         Object.entries(groupedInvestments).forEach(([proposalId, data]) => {
+//             const invested = data.invested;
+//             const returns = data.returns;
+            
+//             totalInvested += invested;
+//             totalReturns += returns;
+
+//             statsByProposal[proposalId] = {
+//                 invested: invested,
+//                 returns: returns,
+//                 equityOwnership: Math.min(
+//                     Number(((invested / data.fundingGoal) * 100).toFixed(2)),
+//                     100
+//                 ),
+//                 roi: 20 // Fixed 20% ROI
+//             };
+//         });
+
+//         res.status(200).json({
+//             totalInvested: Math.round(totalInvested),
+//             totalReturns: Math.round(totalReturns),
+//             statsByProposal,
+//             totalROI: 20
+//         });
+
+//     } catch (error) {
+//         console.error("❌ Error fetching investor stats:", error);
+//         res.status(500).json({ 
+//             message: "Error fetching investor stats", 
+//             error: error.message 
+//         });
+//     }
+// };
 
 // Get funding trends - Enhanced for Chart.js
 exports.fundingTrends = async (req, res) => {
