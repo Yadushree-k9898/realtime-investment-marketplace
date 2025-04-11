@@ -50,6 +50,52 @@ exports.createProposal = async (req, res) => {
   }
 };
 
+// exports.getProposals = async (req, res) => {
+//   try {
+//     const { status } = req.query;
+//     const filter = {};
+
+//     if (req.user.role === "founder") {
+//       filter.founder = req.user.id;
+//     } else if (req.user.role !== "investor") {
+//       return res.status(403).json({ message: "Unauthorized role" });
+//     }
+
+//     if (status) {
+//       if (!["Under Review", "Negotiating", "Funded"].includes(status)) {
+//         return res.status(400).json({ message: "Invalid status value" });
+//       }
+//       filter.status = status;
+//     }
+
+//     const cacheKey = `proposals:${JSON.stringify(filter)}`;
+
+//     redis.get(cacheKey, async (err, cachedData) => {
+//       if (err) return res.status(500).json({ message: "Redis error", error: err.message });
+
+//       if (cachedData) {
+//         console.log("Cache hit for proposals:", cacheKey);
+//         return res.json(JSON.parse(cachedData));
+//       }
+
+//       const proposals = await Proposal.find(filter)
+//         .populate("founder", "name email")
+//         .populate("investors.investor", "name email")
+//         .populate("comments.user", "name email");
+
+//       redis.setex(cacheKey, 3600, JSON.stringify(proposals), (err) => {
+//         if (err) console.error("Redis SETEX error:", err);
+//         else console.log("Cached proposals with key:", cacheKey);
+//       });
+
+//       return res.json(proposals);
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
 exports.getProposals = async (req, res) => {
   try {
     const { status } = req.query;
@@ -57,7 +103,9 @@ exports.getProposals = async (req, res) => {
 
     if (req.user.role === "founder") {
       filter.founder = req.user.id;
-    } else if (req.user.role !== "investor") {
+    } else if (req.user.role === "admin" && req.query.founder) {
+      filter.founder = req.query.founder;
+    } else if (req.user.role !== "investor" && req.user.role !== "admin") {
       return res.status(403).json({ message: "Unauthorized role" });
     }
 

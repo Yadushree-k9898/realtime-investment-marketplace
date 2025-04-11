@@ -1,4 +1,4 @@
-// components/dashboard/admin/UserManagement.jsx
+// ✅ Updated: components/dashboard/admin/UserManagement.jsx
 import React from 'react';
 import UserTable from './UserTable';
 
