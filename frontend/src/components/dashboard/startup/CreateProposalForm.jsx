@@ -12,7 +12,7 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    expectedAmount: "",
+    fundingGoal: "",
     status: "Under Review",
   });
 
@@ -21,7 +21,7 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
       setFormData({
         title: initialData.title || "",
         description: initialData.description || "",
-        expectedAmount: initialData.expectedAmount || "",
+        fundingGoal: initialData.fundingGoal || "",
         status: initialData.status || "Under Review",
       });
     }
@@ -34,13 +34,18 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { title, description, expectedAmount } = formData;
-    if (!title || !description || !expectedAmount) {
+
+    const { title, description, fundingGoal } = formData;
+    if (!title || !description || !fundingGoal) {
       return toast.error("Please fill all fields");
     }
 
     try {
       if (isEditMode) {
+        if (!initialData?._id) {
+          return toast.error("Invalid Proposal ID");
+        }
+
         await dispatch(updateProposal({ id: initialData._id, data: formData })).unwrap();
         toast.success("Proposal updated");
       } else {
@@ -48,64 +53,74 @@ const CreateProposalForm = ({ initialData = null, isEditMode = false }) => {
         toast.success("Proposal created");
       }
 
-      navigate("/dashboard"); // go back after success
+      navigate("/dashboard");
     } catch (error) {
-      toast.error(error.message || "Something went wrong");
+      toast.error(error?.message || "Something went wrong");
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block mb-1 font-medium">Title</label>
-        <input
-          type="text"
-          name="title"
-          className="w-full border rounded p-2 dark:bg-neutral-800"
-          value={formData.title}
-          onChange={handleChange}
-        />
-      </div>
+    <div className="flex justify-center">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-xl bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-lg space-y-5 border border-neutral-200 dark:border-neutral-700"
+      >
+        <h2 className="text-2xl font-semibold text-center mb-2 dark:text-white">
+          {isEditMode ? "Edit Proposal" : "Create New Proposal"}
+        </h2>
 
-      <div>
-        <label className="block mb-1 font-medium">Description</label>
-        <textarea
-          name="description"
-          className="w-full border rounded p-2 dark:bg-neutral-800"
-          value={formData.description}
-          onChange={handleChange}
-        />
-      </div>
+        <div>
+          <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Title</label>
+          <input
+            type="text"
+            name="title"
+            className="w-full border rounded-lg p-3 bg-neutral-50 dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+            value={formData.title}
+            onChange={handleChange}
+          />
+        </div>
 
-      <div>
-        <label className="block mb-1 font-medium">Expected Amount (₹)</label>
-        <input
-          type="number"
-          name="expectedAmount"
-          className="w-full border rounded p-2 dark:bg-neutral-800"
-          value={formData.expectedAmount}
-          onChange={handleChange}
-        />
-      </div>
+        <div>
+          <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Description</label>
+          <textarea
+            name="description"
+            rows={4}
+            className="w-full border rounded-lg p-3 bg-neutral-50 dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+            value={formData.description}
+            onChange={handleChange}
+          />
+        </div>
 
-      <div>
-        <label className="block mb-1 font-medium">Status</label>
-        <select
-          name="status"
-          className="w-full border rounded p-2 dark:bg-neutral-800"
-          value={formData.status}
-          onChange={handleChange}
-        >
-          <option value="Under Review">Under Review</option>
-          <option value="Negotiating">Negotiating</option>
-          <option value="Funded">Funded</option>
-        </select>
-      </div>
+        <div>
+          <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Funding Goal (₹)</label>
+          <input
+            type="number"
+            name="fundingGoal"
+            className="w-full border rounded-lg p-3 bg-neutral-50 dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+            value={formData.fundingGoal}
+            onChange={handleChange}
+          />
+        </div>
 
-      <Button type="submit" className="w-full">
-        {isEditMode ? "Update Proposal" : "Create Proposal"}
-      </Button>
-    </form>
+        <div>
+          <label className="block mb-1 font-medium text-gray-700 dark:text-gray-200">Status</label>
+          <select
+            name="status"
+            className="w-full border rounded-lg p-3 bg-neutral-50 dark:bg-neutral-800 dark:text-white dark:border-neutral-700"
+            value={formData.status}
+            onChange={handleChange}
+          >
+            <option value="Under Review">Under Review</option>
+            <option value="Negotiating">Negotiating</option>
+            <option value="Funded">Funded</option>
+          </select>
+        </div>
+
+        <Button type="submit" className="w-full mt-4">
+          {isEditMode ? "Update Proposal" : "Create Proposal"}
+        </Button>
+      </form>
+    </div>
   );
 };
 

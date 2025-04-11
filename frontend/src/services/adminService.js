@@ -10,7 +10,13 @@ const getUserProposals = (userId, token) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
+const deleteUserById = (userId, token) =>
+  API.delete(`/admin/users/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 export default {
   getUserById,
   getUserProposals,
+  deleteUserById,
 };

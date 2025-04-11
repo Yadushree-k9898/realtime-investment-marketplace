@@ -13,8 +13,6 @@ const ProposalCard = ({ proposal }) => {
   const userId = user?._id || user?.id;
   const isFounder = userId && founderId && userId === founderId;
 
-  
-
   const handleEdit = () => {
     dispatch(setCurrentProposal(proposal));
     navigate(`/dashboard/proposals/edit/${proposal._id}`);
@@ -31,37 +29,41 @@ const ProposalCard = ({ proposal }) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 shadow-md rounded-xl p-4 space-y-2">
-      <h3 className="text-lg font-bold">{proposal.title}</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-300">{proposal.description}</p>
+    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow hover:shadow-lg transition duration-200 p-5">
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+        {proposal.title}
+      </h3>
 
-      <div className="text-sm space-y-1">
-        <p><strong>Funding Goal:</strong> ₹{proposal.fundingGoal}</p>
-        <p>Current Funding: ₹{proposal.currentFunding || 0}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">
+        {proposal.description}
+      </p>
 
-        <p><strong>Status:</strong> {proposal.status || "Active"}</p>
-
-        {proposal.returns && <p><strong>Returns:</strong> {proposal.returns}</p>}
-        {proposal.industry && <p><strong>Industry:</strong> {proposal.industry}</p>}
-        {proposal.equityOffered && <p><strong>Equity Offered:</strong> {proposal.equityOffered}%</p>}
-        {proposal.valuation && <p><strong>Valuation:</strong> ₹{proposal.valuation} Cr</p>}
+      {/* Tab-like Info Section */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-700 dark:text-gray-300">
+        <p><span className="font-medium">Funding Goal:</span> ₹{proposal.fundingGoal}</p>
+        <p><span className="font-medium">Current Funding:</span> ₹{proposal.currentFunding || 0}</p>
+        <p><span className="font-medium">Status:</span> {proposal.status || "Active"}</p>
+        {proposal.returns && <p><span className="font-medium">Returns:</span> {proposal.returns}</p>}
+        {proposal.industry && <p><span className="font-medium">Industry:</span> {proposal.industry}</p>}
+        {proposal.equityOffered && <p><span className="font-medium">Equity:</span> {proposal.equityOffered}%</p>}
+        {proposal.valuation && <p><span className="font-medium">Valuation:</span> ₹{proposal.valuation} Cr</p>}
+        {proposal.location && <p><span className="font-medium">Location:</span> {proposal.location}</p>}
         {proposal.milestones?.length > 0 && (
-          <p><strong>Milestones:</strong> {proposal.milestones.length}</p>
+          <p><span className="font-medium">Milestones:</span> {proposal.milestones.length}</p>
         )}
         {proposal.tags?.length > 0 && (
-          <p><strong>Tags:</strong> {proposal.tags.join(", ")}</p>
+          <p className="col-span-2"><span className="font-medium">Tags:</span> {proposal.tags.join(", ")}</p>
         )}
-        {proposal.location && <p><strong>Location:</strong> {proposal.location}</p>}
         {proposal.isPublic !== undefined && (
-          <p><strong>Visibility:</strong> {proposal.isPublic ? "Public" : "Private"}</p>
+          <p><span className="font-medium">Visibility:</span> {proposal.isPublic ? "Public" : "Private"}</p>
         )}
         {proposal.pitchDeckUrl && (
-          <p>
+          <p className="col-span-2">
             <a
               href={proposal.pitchDeckUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 underline"
+              className="text-blue-600 dark:text-blue-400 underline font-medium hover:text-blue-800 dark:hover:text-blue-300 transition"
             >
               View Pitch Deck
             </a>
@@ -69,18 +71,19 @@ const ProposalCard = ({ proposal }) => {
         )}
       </div>
 
-      <div className="flex gap-2 mt-4 flex-wrap">
+      {/* Action Buttons */}
+      <div className="mt-5 flex flex-wrap gap-3">
         {isFounder || user?.role === "admin" ? (
           <>
             <Button
               onClick={handleEdit}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2"
             >
               Edit
             </Button>
             <Button
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-2"
             >
               Delete
             </Button>
@@ -88,7 +91,7 @@ const ProposalCard = ({ proposal }) => {
         ) : user?.role === "investor" ? (
           <Button
             onClick={handleInvest}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white rounded-xl px-4 py-2"
           >
             Invest
           </Button>

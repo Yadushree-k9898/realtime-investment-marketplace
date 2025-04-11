@@ -43,6 +43,7 @@ const {
   getAllInvestments,
   getInvestmentById,
   deleteInvestment,
+  getPlatformStats,
 } = require("../controllers/adminController");
 
 const { protect, restrictTo } = require("../middlewares/authMiddleware");
@@ -57,6 +58,9 @@ router.delete("/users/:id", deleteUser);
 
 // Proposals
 router.get("/proposals", getAllProposals);
+// Platform stats route
+router.get("/stats", getPlatformStats);
+
 
 // Investments
 router.get("/investments", getAllInvestments);

@@ -1,4 +1,3 @@
-// src/redux/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import API from '@/services/api';
 
@@ -13,6 +12,7 @@ const initialState = {
   error: null,
 };
 
+// REGISTER USER
 export const registerUser = createAsyncThunk(
   'auth/registerUser',
   async (formData, { rejectWithValue }) => {
@@ -27,6 +27,7 @@ export const registerUser = createAsyncThunk(
   }
 );
 
+// LOGIN USER
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
   async (formData, { rejectWithValue }) => {
@@ -37,6 +38,21 @@ export const loginUser = createAsyncThunk(
       return fullUser;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
+    }
+  }
+);
+
+// ADMIN DELETE USER
+export const deleteUserByAdmin = createAsyncThunk(
+  'admin/deleteUserByAdmin',
+  async ({ userId, token }, { rejectWithValue }) => {
+    try {
+      await API.delete(`/admin/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return userId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'User deletion failed');
     }
   }
 );
@@ -54,7 +70,10 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(registerUser.pending, (state) => { state.loading = true; })
+      // REGISTER
+      .addCase(registerUser.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
@@ -64,13 +83,30 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(loginUser.pending, (state) => { state.loading = true; })
+
+      // LOGIN
+      .addCase(loginUser.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
       })
       .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // ADMIN DELETE USER
+      .addCase(deleteUserByAdmin.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(deleteUserByAdmin.fulfilled, (state) => {
+        state.loading = false;
+        // You may handle local user list update here if needed
+      })
+      .addCase(deleteUserByAdmin.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

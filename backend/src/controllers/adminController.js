@@ -90,6 +90,17 @@ const deleteInvestment = asyncHandler(async (req, res) => {
   res.json({ message: "Investment deleted successfully" });
 });
 
+// @desc    Get platform stats (total users and proposals)
+// @route   GET /api/admin/stats
+// @access  Admin only
+const getPlatformStats = asyncHandler(async (req, res) => {
+  const totalUsers = await User.countDocuments();
+  const totalProposals = await Proposal.countDocuments();
+
+  res.json({ totalUsers, totalProposals });
+});
+
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -98,4 +109,5 @@ module.exports = {
   getAllInvestments,
   getInvestmentById,
   deleteInvestment,
+  getPlatformStats,
 };

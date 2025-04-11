@@ -192,26 +192,93 @@ exports.getProposal = async (req, res) => {
   }
 };
 
+// exports.updateProposal = async (req, res) => {
+//   try {
+//     const proposal = await Proposal.findById(req.params.id);
+//     if (!proposal) {
+//       return res.status(404).json({ message: "Proposal not found" });
+//     }
+
+//     if (proposal.founder.toString() !== req.user.id && req.user.role !== "admin") {
+//       return res.status(403).json({ message: "Not authorized to update this proposal" });
+//     }
+
+//     const allowedUpdates = ["title", "description", "fundingGoal", "status"];
+//     Object.keys(req.body).forEach((key) => {
+//       if (allowedUpdates.includes(key)) {
+//         proposal[key] = req.body[key];
+//       }
+//     });
+
+//     await proposal.save();
+
+//     if (req.io) {
+//       req.io.emit("proposalUpdated", {
+//         proposalId: proposal._id,
+//         updatedFields: req.body,
+//       });
+//     }
+
+//     clearMatchingCache(`proposal:${proposal._id}*`);
+//     clearMatchingCache("proposals:*");
+
+//     res.json({ message: "Proposal updated successfully", proposal });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
 exports.updateProposal = async (req, res) => {
   try {
-    const proposal = await Proposal.findById(req.params.id);
+    const { id } = req.params;
+
+    const proposal = await Proposal.findById(id);
     if (!proposal) {
       return res.status(404).json({ message: "Proposal not found" });
     }
 
+    // Only the founder who created the proposal or an admin can update it
     if (proposal.founder.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({ message: "Not authorized to update this proposal" });
     }
 
-    const allowedUpdates = ["title", "description", "fundingGoal", "status"];
-    Object.keys(req.body).forEach((key) => {
-      if (allowedUpdates.includes(key)) {
-        proposal[key] = req.body[key];
-      }
-    });
+    const {
+      title,
+      description,
+      fundingGoal,
+      industry,
+      expectedReturn,
+      durationInMonths,
+      equityOffered,
+      valuation,
+      pitchDeckUrl,
+      milestones,
+      tags,
+      location,
+      status,
+      isPublic
+    } = req.body;
+
+    // Update only allowed fields if they exist in req.body
+    if (title !== undefined) proposal.title = title;
+    if (description !== undefined) proposal.description = description;
+    if (fundingGoal !== undefined) proposal.fundingGoal = fundingGoal;
+    if (industry !== undefined) proposal.industry = industry;
+    if (expectedReturn !== undefined) proposal.expectedReturn = expectedReturn;
+    if (durationInMonths !== undefined) proposal.durationInMonths = durationInMonths;
+    if (equityOffered !== undefined) proposal.equityOffered = equityOffered;
+    if (valuation !== undefined) proposal.valuation = valuation;
+    if (pitchDeckUrl !== undefined) proposal.pitchDeckUrl = pitchDeckUrl;
+    if (milestones !== undefined) proposal.milestones = milestones;
+    if (tags !== undefined) proposal.tags = tags;
+    if (location !== undefined) proposal.location = location;
+    if (status !== undefined) proposal.status = status;
+    if (isPublic !== undefined) proposal.isPublic = isPublic;
 
     await proposal.save();
 
+    // Emit real-time update if socket.io available
     if (req.io) {
       req.io.emit("proposalUpdated", {
         proposalId: proposal._id,
@@ -219,11 +286,13 @@ exports.updateProposal = async (req, res) => {
       });
     }
 
+    // Clear cache related to this proposal and list
     clearMatchingCache(`proposal:${proposal._id}*`);
     clearMatchingCache("proposals:*");
 
-    res.json({ message: "Proposal updated successfully", proposal });
+    res.status(200).json({ message: "Proposal updated successfully", proposal });
   } catch (error) {
+    console.error("Update proposal error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
