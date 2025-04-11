@@ -83,7 +83,8 @@ import AllProposals from "@/pages/Proposals/AllProposals";
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import InvestProposalPage from "@/pages/Proposals/InvestProposalPage";
-import UserDetail from "@/components/dashboard/admin/UserDetail"; // ✅ NEW
+import UserDetail from "@/components/dashboard/admin/UserDetail"; 
+import InvestmentsPage from '@/pages/Admin/InvestmentsPage';
 
 const AppRoutes = () => {
   return (
@@ -148,6 +149,14 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/admin/investments"
+  element={
+    <ProtectedRoute>
+      <InvestmentsPage />
+    </ProtectedRoute>
+  }
+/>
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
