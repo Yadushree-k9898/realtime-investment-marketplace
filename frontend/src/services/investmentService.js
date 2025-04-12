@@ -96,6 +96,19 @@ const searchInvestments = async (filters) => {
   }
 };
 
+const fetchInvestmentROI = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/investments/roi`, {
+      headers: authHeader(),
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(handleError(error));
+  }
+};
+
+
 export default {
   fetchInvestorStats,
   fetchFundingTrends,
@@ -103,4 +116,5 @@ export default {
   investInProposal,
   setDefaultReturns,
   searchInvestments,
+  fetchInvestmentROI,
 };

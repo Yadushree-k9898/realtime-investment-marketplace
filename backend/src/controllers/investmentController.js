@@ -624,6 +624,62 @@ exports.searchInvestments = async (req, res) => {
     }
 };
 
+// exports.searchInvestments = async (req, res) => {
+//     try {
+//       const investorId = req.user.id;
+  
+//       const {
+//         proposalId,
+//         industry,
+//         investmentType,
+//         investmentStage,
+//         status,
+//         minROI,
+//         maxROI,
+//         minAmount,
+//         maxAmount,
+//         startDate,
+//         endDate,
+//       } = req.query;
+  
+//       const query = { investor: investorId };
+  
+//       if (proposalId && mongoose.Types.ObjectId.isValid(proposalId)) {
+//         query.proposal = proposalId;
+//       }
+  
+//       if (industry) query.industry = industry;
+//       if (investmentType) query.investmentType = investmentType;
+//       if (investmentStage) query.investmentStage = investmentStage;
+//       if (status) query.status = status;
+//       if (minROI || maxROI) {
+//         query.roi = {};
+//         if (minROI) query.roi.$gte = Number(minROI);
+//         if (maxROI) query.roi.$lte = Number(maxROI);
+//       }
+  
+//       if (minAmount || maxAmount) {
+//         query.amount = {};
+//         if (minAmount) query.amount.$gte = Number(minAmount);
+//         if (maxAmount) query.amount.$lte = Number(maxAmount);
+//       }
+  
+//       if (startDate || endDate) {
+//         query.createdAt = {};
+//         if (startDate) query.createdAt.$gte = new Date(startDate);
+//         if (endDate) query.createdAt.$lte = new Date(endDate);
+//       }
+  
+//       const investments = await Investment.find(query).populate("proposal", "title industry fundingGoal");
+  
+//       res.status(200).json({ count: investments.length, investments });
+  
+//     } catch (error) {
+//       console.error("❌ Error searching investments:", error);
+//       res.status(500).json({ message: "Error searching investments", error: error.message });
+//     }
+//   };
+  
 // Set default returns
 exports.setDefaultReturns = async (req, res) => {
     try {

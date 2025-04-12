@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import investmentService from '@/services/investmentService'; // ✅ use correct service
+import investmentService from '@/services/investmentService';
 
+// Async Thunks
 export const getInvestorStats = createAsyncThunk(
   'investments/getInvestorStats',
   async (_, thunkAPI) => {
@@ -34,20 +35,32 @@ export const getTotalInvestments = createAsyncThunk(
   }
 );
 
-// Add more thunks like getInvestmentROI if needed
+export const getInvestmentROI = createAsyncThunk(
+  'investments/getInvestmentROI',
+  async (_, thunkAPI) => {
+    try {
+      return await investmentService.fetchInvestmentROI();
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
 
+// Slice
 const investmentSlice = createSlice({
   name: 'investments',
   initialState: {
     stats: null,
     trends: null,
     totalAnalysis: null,
+    roi: null,
     loading: false,
     error: null,
   },
   reducers: {},
   extraReducers: builder => {
     builder
+      // Investor Stats
       .addCase(getInvestorStats.pending, state => {
         state.loading = true;
       })
@@ -60,6 +73,8 @@ const investmentSlice = createSlice({
         state.error = action.payload;
         state.loading = false;
       })
+
+      // Funding Trends
       .addCase(getFundingTrends.pending, state => {
         state.loading = true;
       })
@@ -72,6 +87,8 @@ const investmentSlice = createSlice({
         state.error = action.payload;
         state.loading = false;
       })
+
+      // Total Investments
       .addCase(getTotalInvestments.pending, state => {
         state.loading = true;
       })
@@ -81,6 +98,20 @@ const investmentSlice = createSlice({
         state.error = null;
       })
       .addCase(getTotalInvestments.rejected, (state, action) => {
+        state.error = action.payload;
+        state.loading = false;
+      })
+
+      // ROI
+      .addCase(getInvestmentROI.pending, state => {
+        state.loading = true;
+      })
+      .addCase(getInvestmentROI.fulfilled, (state, action) => {
+        state.roi = action.payload;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(getInvestmentROI.rejected, (state, action) => {
         state.error = action.payload;
         state.loading = false;
       });

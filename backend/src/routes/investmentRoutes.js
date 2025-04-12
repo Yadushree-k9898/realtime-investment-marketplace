@@ -3,7 +3,8 @@ const {
     investorStats, 
     investInProposal, 
     fundingTrends, 
-    getTotalInvestments 
+    getTotalInvestments,
+    searchInvestments 
 } = require("../controllers/investmentController");
 const { protect } = require("../middlewares/authMiddleware");
 
@@ -20,5 +21,6 @@ router.get("/total", protect, getTotalInvestments); // Get total investments
 
 // Invest in a proposal - Protected route
 router.post("/:id", protect, investInProposal); // Invest in a proposal
+router.get("/search", protect, searchInvestments); // Invest in a proposal
 
 module.exports = router;

@@ -7,7 +7,7 @@ const getCachedMessages = async (proposalId) => {
 };
 
 const saveMessagesToCache = async (proposalId, messages) => {
-  await redis.set(`messages:${proposalId}`, JSON.stringify(messages), "EX", 3600); // Cache for 1 hour
+  await redis.set(`messages:${proposalId}`, JSON.stringify(messages), "EX", 3600); 
 };
 
 const getMessages = async (proposalId) => {
