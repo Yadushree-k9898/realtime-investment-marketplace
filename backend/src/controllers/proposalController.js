@@ -2,6 +2,8 @@ const Proposal = require("../models/Proposal");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 const redis = require("../config/redis");
+const asyncHandler = require('express-async-handler');
+
 
 // Utility to delete Redis keys matching a pattern
 const clearMatchingCache = (pattern) => {
@@ -49,52 +51,6 @@ exports.createProposal = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-// exports.getProposals = async (req, res) => {
-//   try {
-//     const { status } = req.query;
-//     const filter = {};
-
-//     if (req.user.role === "founder") {
-//       filter.founder = req.user.id;
-//     } else if (req.user.role !== "investor") {
-//       return res.status(403).json({ message: "Unauthorized role" });
-//     }
-
-//     if (status) {
-//       if (!["Under Review", "Negotiating", "Funded"].includes(status)) {
-//         return res.status(400).json({ message: "Invalid status value" });
-//       }
-//       filter.status = status;
-//     }
-
-//     const cacheKey = `proposals:${JSON.stringify(filter)}`;
-
-//     redis.get(cacheKey, async (err, cachedData) => {
-//       if (err) return res.status(500).json({ message: "Redis error", error: err.message });
-
-//       if (cachedData) {
-//         console.log("Cache hit for proposals:", cacheKey);
-//         return res.json(JSON.parse(cachedData));
-//       }
-
-//       const proposals = await Proposal.find(filter)
-//         .populate("founder", "name email")
-//         .populate("investors.investor", "name email")
-//         .populate("comments.user", "name email");
-
-//       redis.setex(cacheKey, 3600, JSON.stringify(proposals), (err) => {
-//         if (err) console.error("Redis SETEX error:", err);
-//         else console.log("Cached proposals with key:", cacheKey);
-//       });
-
-//       return res.json(proposals);
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
 
 exports.getProposals = async (req, res) => {
   try {
@@ -192,41 +148,6 @@ exports.getProposal = async (req, res) => {
   }
 };
 
-// exports.updateProposal = async (req, res) => {
-//   try {
-//     const proposal = await Proposal.findById(req.params.id);
-//     if (!proposal) {
-//       return res.status(404).json({ message: "Proposal not found" });
-//     }
-
-//     if (proposal.founder.toString() !== req.user.id && req.user.role !== "admin") {
-//       return res.status(403).json({ message: "Not authorized to update this proposal" });
-//     }
-
-//     const allowedUpdates = ["title", "description", "fundingGoal", "status"];
-//     Object.keys(req.body).forEach((key) => {
-//       if (allowedUpdates.includes(key)) {
-//         proposal[key] = req.body[key];
-//       }
-//     });
-
-//     await proposal.save();
-
-//     if (req.io) {
-//       req.io.emit("proposalUpdated", {
-//         proposalId: proposal._id,
-//         updatedFields: req.body,
-//       });
-//     }
-
-//     clearMatchingCache(`proposal:${proposal._id}*`);
-//     clearMatchingCache("proposals:*");
-
-//     res.json({ message: "Proposal updated successfully", proposal });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
 
 
 exports.updateProposal = async (req, res) => {
@@ -415,3 +336,166 @@ exports.searchProposals = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// GET /api/proposals/:id/investors
+// @desc    Get all investors who invested in a proposal (founder only)
+// @access  Private
+// exports.getProposalInvestorsForFounder = asyncHandler(async (req, res) => {
+//   const proposalId = req.params.id;
+
+//   const proposal = await Proposal.findById(proposalId);
+
+//   if (!proposal) {
+//     res.status(404);
+//     throw new Error("Proposal not found");
+//   }
+
+//   if (proposal.founder.toString() !== req.user._id.toString()) {
+//     res.status(403);
+//     throw new Error("Not authorized to view this proposal’s investors");
+//   }
+
+//   const investments = await Investment.find({ proposal: proposalId })
+//     .populate("investor", "name email role profileImage")
+//     .sort({ createdAt: -1 });
+
+//   res.status(200).json({
+//     proposal: {
+//       id: proposal._id,
+//       title: proposal.title,
+//       fundingGoal: proposal.fundingGoal,
+//       currentFunding: proposal.currentFunding,
+//     },
+//     totalInvestors: investments.length,
+//     investors: investments.map((inv) => ({
+//       investorId: inv.investor._id,
+//       name: inv.investor.name,
+//       email: inv.investor.email,
+//       profileImage: inv.investor.profileImage || null,
+//       amount: inv.amount,
+//       investmentType: inv.investmentType,
+//       equityOwnership: inv.equityOwnership,
+//       expectedReturn: inv.expectedReturn,
+//       ROI: inv.ROI,
+//       status: inv.status,
+//       investedAt: inv.createdAt,
+//     })),
+//   });
+// });
+
+// exports.getProposalInvestorsForFounder = asyncHandler(async (req, res) => {
+//   const proposalId = req.params.id;
+//   const userId = req.user._id.toString();
+
+//   console.log("🔍 Fetching investors for proposal:", proposalId);
+//   console.log("🔐 Request made by user:", userId);
+
+//   // 1. Validate Proposal Exists
+//   const proposal = await Proposal.findById(proposalId);
+//   if (!proposal) {
+//     console.error("❌ Proposal not found for ID:", proposalId);
+//     res.status(404);
+//     throw new Error("Proposal not found");
+//   }
+
+//   // 2. Check If Logged-In User Is the Founder
+//   if (proposal.founder.toString() !== userId) {
+//     console.error("❌ Not authorized. Founder:", proposal.founder.toString(), "User:", userId);
+//     res.status(403);
+//     throw new Error("Not authorized to view this proposal’s investors");
+//   }
+
+//   // 3. Fetch Investments Linked to This Proposal
+//   const investments = await Investment.find({ proposal: proposalId })
+//     .populate("investor", "name email role profileImage")
+//     .sort({ createdAt: -1 });
+
+//   console.log(`✅ Found ${investments.length} investments for proposal ${proposal.title}`);
+
+//   // 4. Send Back Data
+//   res.status(200).json({
+//     proposal: {
+//       id: proposal._id,
+//       title: proposal.title,
+//       fundingGoal: proposal.fundingGoal,
+//       currentFunding: proposal.currentFunding,
+//       industry: proposal.industry || "Not specified",
+//       equityOffered: proposal.equityOffered || "N/A",
+//       status: proposal.status,
+//     },
+//     totalInvestors: investments.length,
+//     investors: investments.map((inv) => ({
+//       investorId: inv.investor._id,
+//       name: inv.investor.name,
+//       email: inv.investor.email,
+//       profileImage: inv.investor.profileImage || null,
+//       amount: inv.amount,
+//       investmentType: inv.investmentType,
+//       equityOwnership: inv.equityOwnership,
+//       expectedReturn: inv.expectedReturn,
+//       ROI: inv.ROI,
+//       status: inv.status,
+//       investedAt: inv.createdAt,
+//     })),
+//   });
+// });
+
+
+exports.getProposalInvestorsForFounder = asyncHandler(async (req, res) => {
+  const proposalId = req.params.id;
+  const userId = req.user._id.toString();
+
+  console.log("🔍 Fetching investors for proposal:", proposalId);
+  console.log("🔐 Request made by user:", userId);
+
+  // 1. Validate Proposal Exists
+  const proposal = await Proposal.findById(proposalId);
+  if (!proposal) {
+    console.error("❌ Proposal not found for ID:", proposalId);
+    return res.status(404).json({ error: "Proposal not found" });
+  }
+
+  // 2. Check If Logged-In User Is the Founder or Admin
+  if (proposal.founder.toString() !== userId && req.user.role !== 'admin') {
+    console.error("❌ Not authorized. Founder:", proposal.founder.toString(), "User:", userId);
+    return res.status(403).json({ error: "Not authorized to view this proposal’s investors" });
+  }
+
+  // 3. Fetch Investments Linked to This Proposal
+  const investments = await Investment.find({ proposal: proposalId })
+    .populate("investor", "name email role profileImage") // Populate investor data
+    .sort({ createdAt: -1 });
+
+  if (investments.length === 0) {
+    console.log("⚠️ No investments found for this proposal.");
+  } else {
+    console.log(`✅ Found ${investments.length} investments for proposal ${proposal.title}`);
+  }
+
+  // 4. Send Back Data
+  res.status(200).json({
+    proposal: {
+      id: proposal._id,
+      title: proposal.title,
+      fundingGoal: proposal.fundingGoal,
+      currentFunding: proposal.currentFunding,
+      industry: proposal.industry || "Not specified",
+      equityOffered: proposal.equityOffered || "N/A",
+      status: proposal.status,
+    },
+    totalInvestors: investments.length,
+    investors: investments.map((inv) => ({
+      investorId: inv.investor._id,
+      name: inv.investor.name,
+      email: inv.investor.email,
+      profileImage: inv.investor.profileImage || null,
+      amount: inv.amount,
+      investmentType: inv.investmentType,
+      equityOwnership: inv.equityOwnership,
+      expectedReturn: inv.expectedReturn,
+      ROI: inv.ROI,
+      status: inv.status,
+      investedAt: inv.createdAt,
+    })),
+  });
+});

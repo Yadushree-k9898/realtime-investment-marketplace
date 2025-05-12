@@ -1,5 +1,3 @@
-// ...existing code...
-
 InvestmentSchema.pre('save', async function(next) {
     if (this.isNew || this.isModified('amount')) {
         const baseReturns = {

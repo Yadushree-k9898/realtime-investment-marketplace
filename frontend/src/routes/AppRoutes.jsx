@@ -286,6 +286,83 @@
 // export default AppRoutes;
 
 
+// import { Routes, Route } from "react-router-dom";
+// import Login from "@/pages/Auth/Login";
+// import Register from "@/pages/Auth/Register";
+// import LogoutPage from "@/pages/Auth/LogoutPage";
+// import DashboardPage from "@/pages/Dashboard/DashboardPage";
+// import CreateProposalPage from "@/pages/Proposals/CreateProposalPage";
+// import EditProposal from "@/pages/Proposals/EditProposal";
+// import AllProposals from "@/pages/Proposals/AllProposals";
+// import NotFound from "@/pages/NotFound";
+// import ProtectedRoute from "@/components/common/ProtectedRoute";
+// import InvestProposalPage from "@/pages/Proposals/InvestProposalPage";
+
+// // Admin Pages
+// import UserDetail from "@/components/dashboard/admin/UserDetail";
+// import InvestmentsPage from "@/pages/Admin/InvestmentsPage";
+// import AdminAnalytics from "@/pages/Admin/AdminAnalytics";
+// import AdminProposals from "@/pages/Admin/AllProposalsPage";
+
+// // Layout
+// import MainLayout from "@/components/layout/MainLayout";
+
+// // Profile Page
+// import ProfilePage from "@/pages/Profile/ProfilePage";
+// import EditProfile from "@/pages/Profile/EditProfile"; // ✅ Import EditProfile
+//  // ✅ Import profile page
+
+// const AppRoutes = () => {
+//   return (
+//     <Routes>
+//       {/* Public Routes */}
+//       <Route path="/login" element={<Login />} />
+//       <Route path="/register" element={<Register />} />
+//       <Route path="/logout" element={<LogoutPage />} />
+
+//       {/* Protected Routes with Layout */}
+//       <Route
+//         path="/dashboard"
+//         element={
+//           <ProtectedRoute>
+//             <MainLayout />
+//           </ProtectedRoute>
+//         }
+//       >
+//         <Route index element={<DashboardPage />} />
+//         <Route path="proposals" element={<AllProposals />} />
+//         <Route path="proposals/create" element={<CreateProposalPage />} />
+//         <Route path="proposals/edit/:id" element={<EditProposal />} />
+//         <Route path="proposals/invest/:id" element={<InvestProposalPage />} />
+//         <Route path="profile" element={<ProfilePage />} /> 
+//         <Route path="profile/edit" element={<EditProfile />} /> {/* ✅ Add Profile Route */}
+//       </Route>
+
+//       {/* Admin Routes with Layout */}
+//       <Route
+//         path="/admin"
+//         element={
+//           <ProtectedRoute>
+//             <MainLayout />
+//           </ProtectedRoute>
+//         }
+//       >
+//         <Route path="users/:userId" element={<UserDetail />} />
+//         <Route path="investments" element={<InvestmentsPage />} />
+//         <Route path="analytics" element={<AdminAnalytics />} />
+//         <Route path="proposals" element={<AdminProposals />} />
+//       </Route>
+
+//       {/* 404 */}
+//       <Route path="*" element={<NotFound />} />
+//     </Routes>
+//   );
+// };
+
+// export default AppRoutes;
+
+
+
 import { Routes, Route } from "react-router-dom";
 import Login from "@/pages/Auth/Login";
 import Register from "@/pages/Auth/Register";
@@ -294,6 +371,7 @@ import DashboardPage from "@/pages/Dashboard/DashboardPage";
 import CreateProposalPage from "@/pages/Proposals/CreateProposalPage";
 import EditProposal from "@/pages/Proposals/EditProposal";
 import AllProposals from "@/pages/Proposals/AllProposals";
+import ProposalDetailPage from "@/pages/Proposals/ProposalDetailPage"; // ✅ Import ProposalDetailPage
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import InvestProposalPage from "@/pages/Proposals/InvestProposalPage";
@@ -310,7 +388,6 @@ import MainLayout from "@/components/layout/MainLayout";
 // Profile Page
 import ProfilePage from "@/pages/Profile/ProfilePage";
 import EditProfile from "@/pages/Profile/EditProfile"; // ✅ Import EditProfile
- // ✅ Import profile page
 
 const AppRoutes = () => {
   return (
@@ -334,8 +411,12 @@ const AppRoutes = () => {
         <Route path="proposals/create" element={<CreateProposalPage />} />
         <Route path="proposals/edit/:id" element={<EditProposal />} />
         <Route path="proposals/invest/:id" element={<InvestProposalPage />} />
-        <Route path="profile" element={<ProfilePage />} /> 
-        <Route path="profile/edit" element={<EditProfile />} /> {/* ✅ Add Profile Route */}
+        
+        {/* Add Proposal Detail Route */}
+        <Route path="proposals/:id" element={<ProposalDetailPage />} /> {/* ✅ Add dynamic proposal detail route */}
+        
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/edit" element={<EditProfile />} />
       </Route>
 
       {/* Admin Routes with Layout */}

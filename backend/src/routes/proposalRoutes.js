@@ -8,7 +8,8 @@ const {
   updateProposal,
   deleteProposal,
   addCommentToProposal,
-  searchProposals,  // Included in the same object
+  searchProposals, 
+  getProposalInvestorsForFounder // Included in the same object
 } = require("../controllers/proposalController");
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.get("/:id", protect, getProposal);
 router.put("/:id", protect, authorizeRole("founder"), updateProposal);
 router.delete("/:id", protect, authorizeRole("founder"), deleteProposal);
 router.post("/:id/comments", protect, addCommentToProposal);
+router.get("/:id/investors", protect, getProposalInvestorsForFounder);
 
 module.exports = router;

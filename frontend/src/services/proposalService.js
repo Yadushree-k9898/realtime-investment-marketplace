@@ -29,13 +29,30 @@ const getProposalById = async (id) => {
   const res = await api.get(`/proposals/${id}`);
   return res.data;
 };
+// Get investors who invested in this founder's proposals
+ const getProposalInvestorsForFounder = async (token) => {
+  const response = await fetch('/api/proposals/founder/investors', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch investors');
+  }
+
+  return response.json();
+};
 
 const proposalService = {
   createProposal,
   getProposals,
   updateProposal,
   deleteProposal,
-  getProposalById, // ✅ Add this
+  getProposalById,
+  getProposalInvestorsForFounder // ✅ Add this
 };
 
 export default proposalService;
